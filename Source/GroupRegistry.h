@@ -18,6 +18,12 @@ struct GroupSlot
     std::atomic<float>    levelDb    { -18.0f };
     std::atomic<float>    sineHz     { 1000.0f };
     std::atomic<double>   sampleRate { 0.0 };
+
+    // Varrimentos automáticos: o Analisador pede, o Gerador executa
+    std::atomic<int>      sweepRequest { 0 };   // 1 nível, 2 frequência, -1 parar (consumido pelo Gerador)
+    std::atomic<int>      sweepKind    { 0 };   // varrimento em curso (0 = nenhum)
+    std::atomic<int>      sweepStep    { -1 };  // passo atual
+    std::atomic<int>      sweepRunId   { 0 };   // muda a cada varrimento novo
 };
 
 struct GroupRegistry

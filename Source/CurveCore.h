@@ -282,14 +282,20 @@ public:
         reset();
     }
 
-    void reset() { std::fill (Yavg.begin(), Yavg.end(), cpx (0.0, 0.0)); count = 0; refShift = 0; }
+    void reset() { std::fill (Yavg.begin(), Yavg.end(), cpx (0.0, 0.0)); count = 0; refShift = 0; havePrev = false; noiseDev = 0.3; }
     void setAverages (int n) { avgN = n; }
+    double noiseEstimateDb() const { return noiseDev; }
+    // Média adaptativa: se um bloco novo difere da média mais do que o ruído explica
+    // (rodaste um botão do EQ), a média recomeça nesse bloco -> a curva reage já.
+    void setAdaptive (bool a, double thresholdDb = 0.35) { adaptive = a; adaptThreshDb = thresholdDb; }
     int  frames() const { return count; }
+    int  resets() const { return resetCount; }
     double lastLevelDb() const { return lastDb; }
 
     // Um período completo (N amostras) capturado à saída do dispositivo
     // Devolve false se o bloco foi rejeitado (silêncio).
-    bool addFrame (const float* y)
+    // clockStart: posição deste bloco no relógio do Gerador (mesmo relógio -> latência exata)
+    bool addFrame (const float* y, int64_t clockStart = 0)
     {
         double s2 = 0.0;
         for (int i = 0; i < N; ++i) s2 += (double) y[i] * y[i];
@@ -297,6 +303,10 @@ public:
         if (lastDb < -110.0) return false;      // sem sinal -> não estraga a média
 
         fft.realForward (y, Y, work);
+        const int64_t o = ((clockStart % N) + N) % N;    // em que ponto do período começa o bloco
+        if (o != 0)
+            for (int k = 0; k <= N / 2; ++k)
+                Y[(size_t) k] *= std::polar (1.0, -2.0 * kPi * (double) ((k * o) % N) / N);
 
         // Alinhamento robusto: se o host parar/recomeçar, o desfasamento circular
         // entre gerador e analisador muda. Cada bloco é realinhado ao primeiro.
@@ -312,10 +322,57 @@ public:
             for (int k = 0; k <= N / 2; ++k)
                 Y[(size_t) k] *= std::polar (1.0, 2.0 * kPi * k * shift / N);
 
+        int avgEff = avgN;
+        if (adaptive)
+        {
+            // Ruído entre blocos consecutivos: num plugin digital é ~0 -> sem média (instantâneo);
+            // em hardware com ruído a média sobe até avgN.
+            if (havePrev)
+            {
+                const double dPrev = deviationDb (Y, Yprev);
+                if (dPrev < 4.0 * noiseDev + 0.05) noiseDev = 0.8 * noiseDev + 0.2 * dPrev;
+            }
+            avgEff = noiseDev < 0.03 ? 1 : (noiseDev < 0.15 ? std::min (2, avgN) : avgN);
+            // a curva mudou (rodaste um botão): recomeça a média já com este bloco
+            if (count >= 1 && deviationDb (Y, Yavg) > std::max (adaptThreshDb, 4.0 * noiseDev))
+            {
+                count = 0;
+                ++resetCount;
+            }
+            Yprev = Y;
+            havePrev = true;
+        }
+
         ++count;
-        const double a = averagingAlpha (count, avgN);
+        const double a = averagingAlpha (count, avgEff);
         for (int k = 0; k <= N / 2; ++k) Yavg[(size_t) k] += a * (Y[(size_t) k] - Yavg[(size_t) k]);
         return true;
+    }
+
+    // Diferença média (dB) entre um bloco e a média atual, nos bins válidos com energia.
+    // Amostra ~512 bins espaçados em log para ser barato e pesar graves e agudos por igual.
+    double deviationDb (const std::vector<cpx>& Yn, const std::vector<cpx>& Yref) const
+    {
+        double sum = 0.0; int n = 0;
+        const int kMax = N / 2 - 1;
+        double k = 2.0;
+        const double step = std::pow ((double) kMax / 2.0, 1.0 / 512.0);
+        int last = -1;
+        double maxA = 0.0;
+        for (auto& v : Yref) maxA = std::max (maxA, std::abs (v));
+        while (k < kMax)
+        {
+            const int ki = (int) k;
+            k *= step;
+            if (ki == last) continue;
+            last = ki;
+            if (! exc->valid[(size_t) ki]) continue;
+            const double a = std::abs (Yref[(size_t) ki]), b = std::abs (Yn[(size_t) ki]);
+            if (a < maxA * 1.0e-4 || b <= 0.0) continue;       // ignora bins 80 dB abaixo do máximo
+            sum += std::abs (20.0 * std::log10 (b / a));
+            ++n;
+        }
+        return n > 0 ? sum / n : 0.0;
     }
 
     // H = Ymédio / X
@@ -353,10 +410,12 @@ private:
     }
 
     const Excitation* exc = nullptr;
-    int N = 0, count = 0, avgN = 8, refShift = 0;
+    int N = 0, count = 0, avgN = 8, refShift = 0, resetCount = 0;
+    bool adaptive = false, havePrev = false;
+    double adaptThreshDb = 0.35, noiseDev = 0.3;
     double lastDb = -200.0;
     FFT fft;
-    std::vector<cpx> Y, Yavg, Hf, work;
+    std::vector<cpx> Y, Yavg, Yprev, Hf, work;
 };
 
 // -----------------------------------------------------------------------------
@@ -392,8 +451,40 @@ public:
 
     void reset() { std::fill (Yavg.begin(), Yavg.end(), cpx (0.0, 0.0)); count = 0; }
     void setAverages (int n) { avgN = n; }
+    void setAdaptive (bool a) { adaptive = a; }
     int  frames() const { return count; }
     double lastLevelDb() const { return lastDb; }
+    int  sineBin() const { return k0; }
+
+    // Um ciclo da fundamental à saída, reconstruído a partir dos harmónicos médios.
+    // A fase da fundamental é alinhada à do seno de entrada, por isso a forma
+    // (assimetria, achatamento, clipping) fica diretamente comparável.
+    // in/out: 'points' amostras de 'cycles' ciclos. Amplitudes em escala linear (1 = 0 dBFS).
+    void waveform (int points, int cycles, std::vector<float>& in, std::vector<float>& out) const
+    {
+        in.assign ((size_t) points, 0.0f);
+        out.assign ((size_t) points, 0.0f);
+        if (count == 0) return;
+        const double ph1 = std::arg (Yavg[(size_t) k0]);
+        const int hMax = std::min (64, (N / 2 - 1) / k0);
+        std::vector<double> amp ((size_t) hMax + 1), ph ((size_t) hMax + 1);
+        for (int h = 1; h <= hMax; ++h)
+        {
+            const cpx v = Yavg[(size_t) (h * k0)];
+            amp[(size_t) h] = 2.0 * std::abs (v) / N;
+            ph[(size_t) h]  = std::arg (v) - h * (ph1 + kPi / 2.0);   // fundamental -> seno puro
+        }
+        const double dc = std::real (Yavg[0]) / N;
+        for (int i = 0; i < points; ++i)
+        {
+            const double th = 2.0 * kPi * cycles * i / (points - 1);
+            in[(size_t) i] = (float) (inAmp * std::sin (th));
+            double v = dc;
+            for (int h = 1; h <= hMax; ++h)
+                v += amp[(size_t) h] * std::cos (h * th + ph[(size_t) h]);
+            out[(size_t) i] = (float) v;
+        }
+    }
 
     bool addFrame (const float* y)
     {
@@ -413,9 +504,24 @@ public:
         double dphi = ph - refPhase;
         while (dphi >  kPi) dphi -= 2.0 * kPi;
         while (dphi < -kPi) dphi += 2.0 * kPi;
-        const double tau = dphi / w0;     // atraso fracionário equivalente
+        const double tau = dphi / w0;     // avanço fracionário deste bloco face ao primeiro
         for (int k = 0; k <= N / 2; ++k)
-            Y[(size_t) k] *= std::polar (1.0, 2.0 * kPi * k * tau / N);
+            Y[(size_t) k] *= std::polar (1.0, -2.0 * kPi * k * tau / N);
+
+        // Adaptativo: se a fundamental ou H2..H5 mudam > 1 dB, recomeça a média
+        if (adaptive && count >= 2)
+        {
+            double dev = 0.0;
+            for (int h = 1; h <= 5; ++h)
+            {
+                const int kb = h * k0;
+                if (kb >= N / 2) break;
+                const double a = std::abs (Yavg[(size_t) kb]), b = std::abs (Y[(size_t) kb]);
+                if (a > std::abs (Yavg[(size_t) k0]) * 1.0e-4)
+                    dev = std::max (dev, std::abs (20.0 * std::log10 (std::max (b, 1.0e-20) / a)));
+            }
+            if (dev > 1.0) count = 0;
+        }
 
         ++count;
         const double a = averagingAlpha (count, avgN);
@@ -479,6 +585,7 @@ public:
 
 private:
     const Excitation* exc = nullptr;
+    bool adaptive = false;
     int N = 0, k0 = 1, count = 0, avgN = 8;
     double fs = 48000.0, inAmp = 1.0, refPhase = 0.0, lastDb = -200.0;
     FFT fft;
@@ -554,6 +661,22 @@ public:
         }
     }
 
+    // Espetros médios do dry e do wet como amplitude equivalente de seno (1 = 0 dBFS)
+    void spectra (std::vector<cpx>& dry, std::vector<cpx>& wet, std::vector<char>& valid) const
+    {
+        const size_t M = (size_t) N / 2 + 1;
+        double sw = 0.0;
+        for (auto w : win) sw += w;
+        const double k = 4.0 / std::max (sw * sw, 1.0e-20);
+        dry.assign (M, cpx (0.0, 0.0)); wet.assign (M, cpx (0.0, 0.0)); valid.assign (M, 0);
+        for (size_t i = 1; i + 1 < M; ++i)
+        {
+            dry[i] = cpx (std::sqrt (Sxx[i] * k), 0.0);
+            wet[i] = cpx (std::sqrt (Syy[i] * k), 0.0);
+            valid[i] = count > 0 ? 1 : 0;
+        }
+    }
+
     // Atraso residual do wet face ao dry (GCC-PHAT). Positivo -> wet chega mais tarde.
     int residualLag (double* prominence = nullptr)
     {
@@ -576,6 +699,32 @@ private:
     std::vector<float> win;
     std::vector<cpx> X, Y, Sxy, work;
     std::vector<double> Sxx, Syy;
+};
+
+// -----------------------------------------------------------------------------
+//  Varrimentos automáticos (THD vs nível / THD vs frequência)
+// -----------------------------------------------------------------------------
+enum class SweepKind : int { None = 0, Level = 1, Frequency = 2 };
+
+inline std::vector<double> sweepValues (SweepKind k)
+{
+    if (k == SweepKind::Level)
+    {
+        std::vector<double> v;
+        for (int db = -42; db <= 0; db += 3) v.push_back (db);          // 15 níveis (dBFS)
+        return v;
+    }
+    if (k == SweepKind::Frequency)                                         // 1/3 de oitava ISO
+        return { 31.5, 40, 50, 63, 80, 100, 125, 160, 200, 250, 315, 400, 500, 630, 800,
+                 1000, 1250, 1600, 2000, 2500, 3150, 4000, 5000, 6300, 8000, 10000 };
+    return {};
+}
+
+struct SweepPoint
+{
+    double x = 0.0;                // nível (dBFS) ou frequência (Hz)
+    double thdDb = -200.0, h2Db = -200.0, h3Db = -200.0, gainDb = 0.0;
+    bool   valid = false;
 };
 
 // -----------------------------------------------------------------------------

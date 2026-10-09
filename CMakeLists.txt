@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.22)
-project(AnalyserByPiradex VERSION 1.0.0)
+project(AnalyserByPiradex VERSION 1.1.0)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -53,6 +53,8 @@ target_sources(Analyser PRIVATE
 target_include_directories(Analyser PRIVATE Source)
 
 target_compile_definitions(Analyser PUBLIC
+    JUCE_PLUGINHOST_VST3=1
+    JUCE_PLUGINHOST_AU=1
     JUCE_WEB_BROWSER=0
     JUCE_USE_CURL=0
     JUCE_VST3_CAN_REPLACE_VST2=0
@@ -75,6 +77,14 @@ if(ANL_BUILD_TESTS)
     target_include_directories(pca_core_test PRIVATE Source)
 
     target_compile_definitions(Analyser PUBLIC JUCE_MODAL_LOOPS_PERMITTED=1 ANL_ALLOW_TEST_UNLOCK=1)
+    # Plugin de teste (EQ fixo +6 dB @ 5 kHz, 64 amostras de latência) para testar o modo Host
+    juce_add_plugin(TestEQ
+        COMPANY_NAME "PiradexTest" PLUGIN_MANUFACTURER_CODE Ptst PLUGIN_CODE Teq1
+        FORMATS VST3 PRODUCT_NAME "TestEQ" IS_SYNTH FALSE NEEDS_MIDI_INPUT FALSE)
+    target_sources(TestEQ PRIVATE tests/TestEQ.cpp)
+    target_compile_definitions(TestEQ PUBLIC JUCE_WEB_BROWSER=0 JUCE_USE_CURL=0 JUCE_VST3_CAN_REPLACE_VST2=0)
+    target_link_libraries(TestEQ PRIVATE juce::juce_audio_utils)
+
     add_executable(pca_plugin_test tests/test_plugin.cpp)
     target_include_directories(pca_plugin_test PRIVATE Source $<TARGET_PROPERTY:Analyser,INCLUDE_DIRECTORIES>)
     target_compile_definitions(pca_plugin_test PRIVATE $<TARGET_PROPERTY:Analyser,COMPILE_DEFINITIONS>)

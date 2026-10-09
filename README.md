@@ -18,12 +18,26 @@ python3 tools/nova_senha_beta.py 2027-03-31
 Cola a linha impressa em `kKeys` (`Source/License.cpp`) e faz push — o GitHub compila. Nunca escrevas as senhas em ficheiros do repositório.
 
 ## Instalação no Windows
-O GitHub Actions gera `ANALYSER-by-Piradex-1.0.0-Windows-Setup.exe` (instala o VST3 em `C:\Program Files\Common Files\VST3`) e um `.zip` para instalação manual. Não precisa do *Visual C++ Redistributable*. Como o instalador não tem assinatura digital, o Windows pode mostrar "O Windows protegeu o seu PC": **Mais informações → Executar mesmo assim**.
+O GitHub Actions gera `ANALYSER-by-Piradex-1.1.0-Windows-Setup.exe` (instala o VST3 em `C:\Program Files\Common Files\VST3`) e um `.zip` para instalação manual. Não precisa do *Visual C++ Redistributable*. Como o instalador não tem assinatura digital, o Windows pode mostrar "O Windows protegeu o seu PC": **Mais informações → Executar mesmo assim**.
 
 ## Instalação no Mac
-O GitHub Actions gera `ANALYSER-by-Piradex-1.0.0-macOS.dmg` com o instalador `.pkg` (VST3 + AU) e um `LEIA-ME.txt`. Como o instalador não está assinado com um certificado da Apple, na primeira vez: **botão direito no .pkg → Abrir → Abrir**.
+O GitHub Actions gera `ANALYSER-by-Piradex-1.1.0-macOS.dmg` com o instalador `.pkg` (VST3 + AU) e um `LEIA-ME.txt`. Como o instalador não está assinado com um certificado da Apple, na primeira vez: **botão direito no .pkg → Abrir → Abrir**.
 
 ---
+
+## Novidades na 1.1
+
+- **Modo HOST (uma só instância):** clica em **HOST**, depois em **CARREGAR PLUGIN** e escolhe o EQ, compressor ou saturador (VST3 ou AU). **ABRIR PLUGIN** abre a janela dele; mexe nos botões e a curva muda ao vivo. Com **Fonte = Música**, a faixa passa pelo plugin carregado (ouves o plugin) e o ANALYSER compara antes/depois sem precisar de sidechain. O plugin carregado e as definições dele ficam guardados na sessão.
+- **Curva em tempo real:** blocos sobrepostos (4× mais atualizações) e **Média = Auto**. Num plugin digital não há ruído, por isso a curva mostra logo cada mudança (~¼ s). Em hardware com ruído a média sobe sozinha e recomeça quando mexes num botão.
+- **Separadores de vista:**
+  - **CURVA** — magnitude e fase (ou harmónicos com o seno).
+  - **ONDA** — com o seno: um ciclo da entrada e da saída sobrepostos + **curva de transferência** (vês a onda achatar, ficar assimétrica ou cortar). Com o sweep: a **resposta impulsional** (pré-ringing de EQs de fase linear, etc.). Com música: dry e wet alinhados.
+  - **ESPETRO** — música: espetro antes (cinzento) e depois (verde).
+  - **VARRIMENTO** — **VARRER NÍVEL** (seno de -42 a 0 dBFS: THD, H2, H3 e ganho → onde o equipamento começa a saturar e a comprimir) e **VARRER FREQUÊNCIA** (THD de 31 Hz a 10 kHz).
+- **Botões GERADOR / ANALISADOR / HOST** grandes e indicador de ligação (verde = ligado ao Gerador do grupo).
+- **Latência exata** quando o DAW está a tocar (usa a timeline partilhada) e sempre no modo HOST.
+
+> Logic Pro corre os AU num processo próprio; carregar outros AU dentro do ANALYSER pode não funcionar aí — nesse caso usa a versão VST3 do plugin a medir, ou o modo Gerador + Analisador.
 
 ## Os 3 modos
 
@@ -131,6 +145,10 @@ Os testes verificam, com instâncias reais do plugin:
 ## Capturas
 
 ![Login](docs/ui_login.png)
+![Host](docs/ui_host.png)
+![Onda](docs/ui_onda.png)
+![Varrimento](docs/ui_varrimento.png)
+![Espetro](docs/ui_espetro.png)
 ![Resposta](docs/ui_resposta.png)
 ![Harmónicos](docs/ui_harmonicos.png)
 ![Música](docs/ui_musica.png)

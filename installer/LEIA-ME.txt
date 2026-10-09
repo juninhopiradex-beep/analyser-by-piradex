@@ -1,6 +1,6 @@
 ANALYSER by Piradex — instalação (macOS 10.13 ou superior, Intel e Apple Silicon)
 
-1) Abra o "ANALYSER by Piradex 1.0.0.pkg".
+1) Abra o "ANALYSER by Piradex 1.1.0.pkg".
    Se o Mac disser que é de um "programador não identificado":
    clique com o botão direito (ou Ctrl+clique) no .pkg → Abrir → Abrir.
    (No macOS 13+: Definições do Sistema → Privacidade e Segurança → "Abrir na mesma".)

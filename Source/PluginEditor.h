@@ -33,12 +33,14 @@ public:
                            juce::Slider::SliderStyle, juce::Slider&) override;
 };
 
-// Área do gráfico
+// Área do gráfico (todas as vistas)
 class GraphView : public juce::Component
 {
 public:
     explicit GraphView (CurveAnalyzerProcessor& p) : proc (p) {}
-    void setResults (const AnalysisResults& r) { res = r; repaint(); }
+    void setResults (const AnalysisResults& r);
+    void setTab (ViewTab t) { if (t != tab) { tab = t; repaint(); } }
+    void tick();                                 // anima a curva até ao valor novo (30 Hz)
     void paint (juce::Graphics&) override;
     void mouseMove (const juce::MouseEvent& e) override  { hover = e.position; hovering = true; repaint(); }
     void mouseExit (const juce::MouseEvent&) override    { hovering = false; repaint(); }
@@ -51,12 +53,18 @@ private:
     void drawResponse (juce::Graphics&);
     void drawHarmonics (juce::Graphics&);
     void drawGenerator (juce::Graphics&);
+    void drawWave (juce::Graphics&);
+    void drawSpectrum (juce::Graphics&);
+    void drawSweep (juce::Graphics&);
     void drawMessage (juce::Graphics&, const juce::String& title, const juce::String& sub);
     void drawReadout (juce::Graphics&, const juce::String& text);
+    bool drawWaitingIfNeeded (juce::Graphics&);
     juce::Path curvePath (const pca::Curve& c, std::function<float (float)> yOf, bool phase) const;
 
     CurveAnalyzerProcessor& proc;
     AnalysisResults res;
+    pca::Curve shown;          // curva no ecrã (anima até res.curve)
+    ViewTab tab = ViewTab::Curve;
     juce::Point<float> hover;
     bool hovering = false;
 };
@@ -92,6 +100,9 @@ private:
     void timerCallback() override;
     void exportCsv();
     void updateEnablement();
+    void showPluginMenu();
+    ViewTab effectiveTab() const;
+    bool tabAvailable (ViewTab t) const;
 
     using ComboAtt  = juce::AudioProcessorValueTreeState::ComboBoxAttachment;
     using SliderAtt = juce::AudioProcessorValueTreeState::SliderAttachment;
@@ -108,11 +119,16 @@ private:
     void setupToggle (juce::TextButton&, std::unique_ptr<ButtonAtt>&, const juce::String& text, const juce::String& paramId);
     void setupBarSlider (juce::Slider&, juce::Label&, std::unique_ptr<SliderAtt>&, const juce::String& text,
                          const juce::String& paramId, const juce::String& suffix);
+    void setParam (const juce::String& id, float plain);
 
     CurveAnalyzerProcessor& proc;
     PxLookAndFeel lnf;
 
-    LabeledCombo role, group, signal, fft, source, channel, averages, smoothing, range;
+    // Papel (botões grandes) e separadores de vista
+    juce::TextButton roleGen { "GERADOR" }, roleAna { "ANALISADOR" }, roleHost { "HOST" };
+    juce::TextButton tabCurve { "CURVA" }, tabWave { "ONDA" }, tabSpec { "ESPETRO" }, tabSweep { "VARRIMENTO" };
+
+    LabeledCombo group, signal, fft, source, channel, averages, smoothing, range;
     juce::Slider level, sine, latency;
     juce::Label  levelLabel, sineLabel, latencyLabel;
     std::unique_ptr<SliderAtt> levelAtt, sineAtt, latencyAtt;
@@ -120,11 +136,20 @@ private:
     std::unique_ptr<ButtonAtt> phaseAtt, syncAtt, freezeAtt, muteAtt;
     juce::TextButton resetBtn { "RESET" }, refBtn { "+ REF" }, clearRefBtn { "LIMPAR REFS" }, exportBtn { "EXPORTAR" };
 
+    // Contexto (barra das vistas)
+    juce::TextButton loadBtn { "CARREGAR PLUGIN" }, openBtn { "ABRIR PLUGIN" }, removeBtn { "REMOVER" };
+    juce::TextButton sweepLevelBtn { U8label ("VARRER NÍVEL") }, sweepFreqBtn { U8label ("VARRER FREQUÊNCIA") }, sweepStopBtn { "PARAR" };
+    juce::String chipText;
+    juce::Colour chipColour;
+
     GraphView graph;
     LoginOverlay login;
     juce::String status;
     AnalysisResults last;
     std::unique_ptr<juce::FileChooser> chooser;
+    std::vector<CurveAnalyzerProcessor::InstalledPlugin> pluginList;
+
+    static juce::String U8label (const char* s) { return juce::String::fromUTF8 (s); }
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (CurveAnalyzerEditor)
 };
