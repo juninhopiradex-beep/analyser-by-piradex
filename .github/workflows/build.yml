@@ -2,6 +2,7 @@ name: Build ANALYSER by Piradex (macOS)
 
 on:
   push:
+    branches: [main]
   workflow_dispatch:
 
 jobs:
@@ -17,6 +18,8 @@ jobs:
   macos:
     needs: testes-dsp
     runs-on: macos-14
+    permissions:
+      contents: write
     env:
       VERSAO: "1.0.0"
       ART: build/Analyser_artefacts/Release
@@ -68,8 +71,9 @@ jobs:
         run: |
           curl -sSL -o pluginval.zip https://github.com/Tracktion/pluginval/releases/latest/download/pluginval_macOS.zip
           unzip -q pluginval.zip
+          set -o pipefail
           pluginval.app/Contents/MacOS/pluginval --strictness-level 5 --timeout-ms 300000 \
-            --validate "$ART/VST3/ANALYSER by Piradex.vst3" | tee pluginval.log
+            --validate "$ART/VST3/ANALYSER by Piradex.vst3" 2>&1 | tee pluginval.log
 
       - name: Criar instalador .pkg e .dmg
         run: |
@@ -93,3 +97,25 @@ jobs:
           path: |
             ANALYSER-by-Piradex-*-macOS.dmg
             pluginval.log
+
+      - name: Publicar pré-lançamento (link de download para beta testers)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="v$VERSAO-beta"
+          gh release delete "$TAG" -y --cleanup-tag -R "$GITHUB_REPOSITORY" || true
+          gh release create "$TAG" "ANALYSER-by-Piradex-$VERSAO-macOS.dmg" -R "$GITHUB_REPOSITORY" \
+            --prerelease --target "$GITHUB_SHA" --title "ANALYSER by Piradex $VERSAO (beta)" \
+            --notes-file installer/LEIA-ME.txt
+
+      - name: Guardar binários no ramo "builds"
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir out && cp "ANALYSER-by-Piradex-$VERSAO-macOS.dmg" out/
+          [ -f pluginval.log ] && cp pluginval.log out/ || true
+          cd out
+          git init -q -b builds
+          git -c user.name="github-actions" -c user.email="actions@github.com" add -A
+          git -c user.name="github-actions" -c user.email="actions@github.com" commit -q -m "Build $GITHUB_SHA"
+          git push -f "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" builds
