@@ -1,0 +1,95 @@
+name: Build ANALYSER by Piradex (macOS)
+
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  testes-dsp:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Testes numéricos do núcleo DSP
+        run: |
+          g++ -O2 -std=c++17 -ISource tests/test_core.cpp -o test_core
+          ./test_core
+
+  macos:
+    needs: testes-dsp
+    runs-on: macos-14
+    env:
+      VERSAO: "1.0.0"
+      ART: build/Analyser_artefacts/Release
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Xcode
+        run: xcodebuild -version
+
+      - name: Configurar (universal Intel + Apple Silicon, macOS 10.13+)
+        run: >
+          cmake -B build -G Xcode
+          -DCMAKE_OSX_ARCHITECTURES="arm64;x86_64"
+          -DCMAKE_OSX_DEPLOYMENT_TARGET=10.13
+
+      - name: Compilar VST3 + AU
+        run: cmake --build build --config Release --target Analyser_VST3 Analyser_AU -- -quiet
+
+      - name: Verificar arquiteturas e versão mínima do macOS
+        run: |
+          for b in "$ART/VST3/ANALYSER by Piradex.vst3/Contents/MacOS/ANALYSER by Piradex" \
+                   "$ART/AU/ANALYSER by Piradex.component/Contents/MacOS/ANALYSER by Piradex"; do
+            echo "== $b"
+            archs=$(lipo -archs "$b"); echo "arquiteturas: $archs"
+            [[ "$archs" == *x86_64* && "$archs" == *arm64* ]] || { echo "FALTA uma arquitetura"; exit 1; }
+            minos=$(otool -arch x86_64 -l "$b" | awk '/LC_VERSION_MIN_MACOSX|LC_BUILD_VERSION/{f=1} f&&/(version|minos)/{print $2; exit}')
+            echo "macOS mínimo (Intel): $minos"
+            [[ "$minos" == "10.13" ]] || { echo "Versão mínima inesperada"; exit 1; }
+          done
+
+      - name: Assinar ad-hoc
+        run: |
+          codesign --force --deep -s - "$ART/VST3/ANALYSER by Piradex.vst3"
+          codesign --force --deep -s - "$ART/AU/ANALYSER by Piradex.component"
+
+      - name: Validar Audio Unit (auval, Apple Silicon e Intel/Rosetta)
+        run: |
+          mkdir -p ~/Library/Audio/Plug-Ins/Components
+          cp -R "$ART/AU/ANALYSER by Piradex.component" ~/Library/Audio/Plug-Ins/Components/
+          killall -9 AudioComponentRegistrar || true
+          sleep 3
+          auval -a | grep -i piradex || true
+          auval -v aufx PxAN Prdx
+          softwareupdate --install-rosetta --agree-to-license || true
+          arch -x86_64 auval -v aufx PxAN Prdx
+
+      - name: Validar com pluginval
+        continue-on-error: true
+        run: |
+          curl -sSL -o pluginval.zip https://github.com/Tracktion/pluginval/releases/latest/download/pluginval_macOS.zip
+          unzip -q pluginval.zip
+          pluginval.app/Contents/MacOS/pluginval --strictness-level 5 --timeout-ms 300000 \
+            --validate "$ART/VST3/ANALYSER by Piradex.vst3" | tee pluginval.log
+
+      - name: Criar instalador .pkg e .dmg
+        run: |
+          mkdir -p root/Library/Audio/Plug-Ins/VST3 root/Library/Audio/Plug-Ins/Components
+          cp -R "$ART/VST3/ANALYSER by Piradex.vst3" root/Library/Audio/Plug-Ins/VST3/
+          cp -R "$ART/AU/ANALYSER by Piradex.component" root/Library/Audio/Plug-Ins/Components/
+          pkgbuild --root root --identifier com.piradex.analyser.plugins --version "$VERSAO" \
+                   --install-location / --scripts installer/scripts analyser-plugins.pkg
+          productbuild --distribution installer/distribution.xml --resources installer \
+                       --package-path . "ANALYSER by Piradex $VERSAO.pkg"
+          mkdir -p "dmg/Plugins"
+          cp "ANALYSER by Piradex $VERSAO.pkg" dmg/
+          cp installer/LEIA-ME.txt dmg/
+          cp -R "$ART/VST3/ANALYSER by Piradex.vst3" "$ART/AU/ANALYSER by Piradex.component" dmg/Plugins/
+          hdiutil create -volname "ANALYSER by Piradex" -srcfolder dmg -ov -format UDZO "ANALYSER-by-Piradex-$VERSAO-macOS.dmg"
+          ls -la *.pkg *.dmg
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ANALYSER-by-Piradex-macOS
+          path: |
+            ANALYSER-by-Piradex-*-macOS.dmg
+            pluginval.log

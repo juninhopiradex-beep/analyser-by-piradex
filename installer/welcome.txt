@@ -1,0 +1,10 @@
+ANALYSER by Piradex 1.0
+
+Analisador de curvas, fase, latência e harmónicos para plugins e equipamento analógico.
+
+Instala:
+  • VST3  → /Library/Audio/Plug-Ins/VST3
+  • AU    → /Library/Audio/Plug-Ins/Components
+
+Compatível com macOS 10.13 ou superior, Macs Intel e Apple Silicon.
+Ao abrir o plugin pela primeira vez é pedida a senha.

@@ -1,0 +1,20 @@
+ANALYSER by Piradex — instalação (macOS 10.13 ou superior, Intel e Apple Silicon)
+
+1) Abra o "ANALYSER by Piradex 1.0.0.pkg".
+   Se o Mac disser que é de um "programador não identificado":
+   clique com o botão direito (ou Ctrl+clique) no .pkg → Abrir → Abrir.
+   (No macOS 13+: Definições do Sistema → Privacidade e Segurança → "Abrir na mesma".)
+
+2) Siga o instalador (pede a senha de administrador do Mac).
+
+3) Abra o DAW e procure "ANALYSER by Piradex" (fabricante: Piradex).
+   Se não aparecer, peça ao DAW para procurar plugins de novo
+   (Logic: Gestor de Plug-ins → Restaurar e voltar a analisar).
+
+4) Na primeira vez que abrir o plugin, introduza a senha.
+
+Instalação manual (sem o .pkg): copie a pasta "Plugins" para
+  /Library/Audio/Plug-Ins/VST3 e /Library/Audio/Plug-Ins/Components
+e no Terminal:
+  sudo xattr -cr "/Library/Audio/Plug-Ins/VST3/ANALYSER by Piradex.vst3"
+  sudo xattr -cr "/Library/Audio/Plug-Ins/Components/ANALYSER by Piradex.component"
