@@ -6,6 +6,9 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # Compatível com Macs antigos (Catalina 10.15, High Sierra 10.13) e novos (Apple Silicon)
 set(CMAKE_OSX_DEPLOYMENT_TARGET "10.13" CACHE STRING "macOS mínimo")
 
+# Windows: runtime do Visual C++ embutido no plugin (não precisa do "VC++ Redistributable")
+set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+
 # JUCE: usa uma cópia local (-DJUCE_PATH=...) ou descarrega a versão fixa
 if(DEFINED JUCE_PATH)
     add_subdirectory(${JUCE_PATH} JUCE)

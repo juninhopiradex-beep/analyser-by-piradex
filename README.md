@@ -2,7 +2,7 @@
 
 Analisador de curvas para ver **exatamente o que um plugin ou um equipamento analógico faz ao som**: resposta em frequência, fase, latência, harmónicos/THD — e também o que o equipamento faz **com música real** (dry vs wet).
 
-Formatos: **VST3** e **AU** para macOS **10.13 ou superior**, binário universal (**Intel** e **Apple Silicon**) — testado para correr em Macs de 2013 com Catalina. Código JUCE 8, C++17.
+Formatos: **VST3** e **AU** para macOS **10.13 ou superior**, binário universal (**Intel** e **Apple Silicon**) — testado para correr em Macs de 2013 com Catalina; e **VST3 para Windows 10/11 (64 bits)**, com instalador. Código JUCE 8, C++17.
 
 ## Acesso por senha
 Ao abrir o plugin aparece o ecrã de login. Há dois tipos de senha:
@@ -16,6 +16,9 @@ O código não contém as senhas — só um *salt* e o hash PBKDF2-HMAC-SHA256 (
 python3 tools/nova_senha_beta.py 2027-03-31
 ```
 Cola a linha impressa em `kKeys` (`Source/License.cpp`) e faz push — o GitHub compila. Nunca escrevas as senhas em ficheiros do repositório.
+
+## Instalação no Windows
+O GitHub Actions gera `ANALYSER-by-Piradex-1.0.0-Windows-Setup.exe` (instala o VST3 em `C:\Program Files\Common Files\VST3`) e um `.zip` para instalação manual. Não precisa do *Visual C++ Redistributable*. Como o instalador não tem assinatura digital, o Windows pode mostrar "O Windows protegeu o seu PC": **Mais informações → Executar mesmo assim**.
 
 ## Instalação no Mac
 O GitHub Actions gera `ANALYSER-by-Piradex-1.0.0-macOS.dmg` com o instalador `.pkg` (VST3 + AU) e um `LEIA-ME.txt`. Como o instalador não está assinado com um certificado da Apple, na primeira vez: **botão direito no .pkg → Abrir → Abrir**.

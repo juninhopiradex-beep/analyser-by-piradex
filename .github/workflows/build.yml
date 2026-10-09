@@ -1,4 +1,4 @@
-name: Build ANALYSER by Piradex (macOS)
+name: Build ANALYSER by Piradex (macOS + Windows)
 
 on:
   push:
@@ -18,8 +18,6 @@ jobs:
   macos:
     needs: testes-dsp
     runs-on: macos-14
-    permissions:
-      contents: write
     env:
       VERSAO: "1.0.0"
       ART: build/Analyser_artefacts/Release
@@ -73,7 +71,7 @@ jobs:
           unzip -q pluginval.zip
           set -o pipefail
           pluginval.app/Contents/MacOS/pluginval --strictness-level 5 --timeout-ms 300000 \
-            --validate "$ART/VST3/ANALYSER by Piradex.vst3" 2>&1 | tee pluginval.log
+            --validate "$ART/VST3/ANALYSER by Piradex.vst3" 2>&1 | tee pluginval-macOS.log
 
       - name: Criar instalador .pkg e .dmg
         run: |
@@ -96,25 +94,92 @@ jobs:
           name: ANALYSER-by-Piradex-macOS
           path: |
             ANALYSER-by-Piradex-*-macOS.dmg
-            pluginval.log
+            pluginval-macOS.log
 
-      - name: Publicar pré-lançamento (link de download para beta testers)
-        env:
-          GH_TOKEN: ${{ github.token }}
+
+  windows:
+    needs: testes-dsp
+    runs-on: windows-2022
+    env:
+      VERSAO: "1.0.0"
+      ART: build/Analyser_artefacts/Release
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configurar (x64, Visual Studio 2022)
+        run: cmake -B build -G "Visual Studio 17 2022" -A x64
+
+      - name: Compilar VST3
+        run: cmake --build build --config Release --target Analyser_VST3 --parallel 4
+
+      - name: Verificar binário x64 e dependências
+        shell: pwsh
         run: |
+          $dll = "$env:ART/VST3/ANALYSER by Piradex.vst3/Contents/x86_64-win/ANALYSER by Piradex.vst3"
+          if (!(Test-Path $dll)) { throw "VST3 não encontrado" }
+          $vs = & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -latest -property installationPath
+          $dumpbin = Get-ChildItem "$vs\VC\Tools\MSVC" -Recurse -Filter dumpbin.exe | Where-Object { $_.FullName -like "*Hostx64\x64*" } | Select-Object -First 1
+          & $dumpbin.FullName /headers $dll | Select-String "machine"
+          $deps = & $dumpbin.FullName /dependents $dll
+          $deps
+          if ($deps -match "VCRUNTIME|MSVCP") { throw "Depende do VC++ Redistributable (runtime devia estar embutido)" }
+
+      - name: Validar com pluginval
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          Invoke-WebRequest -Uri https://github.com/Tracktion/pluginval/releases/latest/download/pluginval_Windows.zip -OutFile pluginval.zip
+          Expand-Archive pluginval.zip -DestinationPath pv
+          & .\pv\pluginval.exe --strictness-level 5 --timeout-ms 300000 --validate "$env:ART/VST3/ANALYSER by Piradex.vst3" 2>&1 | Tee-Object -FilePath pluginval-Windows.log
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Criar instalador (Inno Setup) e .zip
+        shell: pwsh
+        run: |
+          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          if (!(Test-Path $iscc)) { choco install innosetup -y --no-progress; }
+          & $iscc "/DVersao=$env:VERSAO" installer\windows.iss
+          if ($LASTEXITCODE -ne 0) { throw "Inno Setup falhou" }
+          Compress-Archive -Path "$env:ART/VST3/ANALYSER by Piradex.vst3", installer/LEIA-ME-Windows.txt -DestinationPath "out-win/ANALYSER-by-Piradex-$env:VERSAO-Windows-VST3.zip"
+          Get-ChildItem out-win
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ANALYSER-by-Piradex-Windows
+          path: |
+            out-win/*
+            pluginval-Windows.log
+
+  publicar:
+    needs: [macos, windows]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      VERSAO: "1.0.0"
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Publicar pré-lançamento (macOS + Windows)
+        run: |
+          ls -la dist
           TAG="v$VERSAO-beta"
           gh release delete "$TAG" -y --cleanup-tag -R "$GITHUB_REPOSITORY" || true
-          gh release create "$TAG" "ANALYSER-by-Piradex-$VERSAO-macOS.dmg" -R "$GITHUB_REPOSITORY" \
+          FICHEIROS=$(find dist -type f \( -name '*.dmg' -o -name '*.exe' -o -name '*.zip' \))
+          echo "$FICHEIROS"
+          gh release create "$TAG" $FICHEIROS -R "$GITHUB_REPOSITORY" \
             --prerelease --target "$GITHUB_SHA" --title "ANALYSER by Piradex $VERSAO (beta)" \
-            --notes-file installer/LEIA-ME.txt
+            --notes "macOS (10.13+, Intel e Apple Silicon): ANALYSER-by-Piradex-$VERSAO-macOS.dmg · Windows 10/11 64 bits: ANALYSER-by-Piradex-$VERSAO-Windows-Setup.exe (ou o .zip para instalação manual)."
 
       - name: Guardar binários no ramo "builds"
-        env:
-          GH_TOKEN: ${{ github.token }}
         run: |
-          mkdir out && cp "ANALYSER-by-Piradex-$VERSAO-macOS.dmg" out/
-          [ -f pluginval.log ] && cp pluginval.log out/ || true
-          cd out
+          cd dist
           git init -q -b builds
           git -c user.name="github-actions" -c user.email="actions@github.com" add -A
           git -c user.name="github-actions" -c user.email="actions@github.com" commit -q -m "Build $GITHUB_SHA"
