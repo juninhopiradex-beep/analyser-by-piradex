@@ -702,6 +702,95 @@ private:
 };
 
 // -----------------------------------------------------------------------------
+//  Periodicidade e deteção automática do sinal de teste
+// -----------------------------------------------------------------------------
+// Resíduo relativo entre um bloco e o período anterior: ~0 para o sinal de teste
+// (periódico em N, mesmo depois de um EQ ou saturação), ~1-2 para música.
+inline double periodicResidual (const float* cur, const float* prev, int n)
+{
+    double num = 0.0, den = 0.0;
+    for (int i = 0; i < n; ++i)
+    {
+        const double d = (double) cur[i] - prev[i];
+        num += d * d;
+        den += (double) cur[i] * cur[i];
+    }
+    return den > 1.0e-14 * n ? num / den : -1.0;     // -1 = silêncio
+}
+
+// Descobre o sinal de teste só a partir do áudio (quando o Gerador não está ligado
+// por grupo: outro processo, outro grupo, ou definições diferentes no Analisador).
+class SignalDetector
+{
+public:
+    struct Result { bool found = false; int N = 0; Signal signal = Signal::LogSweep; double sineHz = 1000.0; double residual = 1.0; };
+
+    // hist: amostras mais recentes no fim (idealmente >= 2 x 65536)
+    Result detect (const std::vector<float>& hist, double fs, double levelDb)
+    {
+        Result r;
+        const int H = (int) hist.size();
+        for (int N = 4096; N <= 65536; N *= 2)
+        {
+            if (H < 2 * N) break;
+            const float* cur = hist.data() + H - N;
+            const double res = periodicResidual (cur, cur - N, N);
+            if (res >= 0.0 && res < 0.1) { r.found = true; r.N = N; r.residual = res; break; }
+        }
+        if (! r.found) return r;
+
+        const int N = r.N;
+        fft.init (N);
+        fft.realForward (hist.data() + H - N, Y, work);
+
+        // Seno: quase toda a energia num só bin
+        double tot = 0.0, best = 0.0; int kb = 1;
+        for (int k = 1; k < N / 2; ++k)
+        {
+            const double p = std::norm (Y[(size_t) k]);
+            tot += p;
+            if (p > best) { best = p; kb = k; }
+        }
+        if (tot > 0.0 && best / tot > 0.5)
+        {
+            r.signal = Signal::Sine;
+            r.sineHz = kb * fs / N;
+            return r;
+        }
+
+        // Impulso / sweep / ruído rosa: o certo dá uma resposta impulsional concentrada
+        double bestProm = -1.0;
+        for (Signal t : { Signal::Impulse, Signal::LogSweep, Signal::PinkNoise })
+        {
+            const Excitation& ex = excitation (t, N, fs, levelDb);
+            std::vector<cpx> Hk ((size_t) N / 2 + 1, cpx (0.0, 0.0));
+            for (int k = 1; k < N / 2; ++k)
+                if (ex.valid[(size_t) k]) Hk[(size_t) k] = Y[(size_t) k] / ex.X[(size_t) k];
+            fft.realInverse (Hk, work);
+            double prom = 0.0;
+            findImpulsePeak (work, &prom);
+            if (prom > bestProm) { bestProm = prom; r.signal = t; }
+        }
+        return r;
+    }
+
+private:
+    const Excitation& excitation (Signal t, int N, double fs, double levelDb)
+    {
+        for (auto& e : cache)
+            if (e.spec.signal == t && e.spec.N == N && std::abs (e.spec.fs - fs) < 0.5) return e;
+        ExcitationSpec sp; sp.N = N; sp.fs = fs; sp.signal = t; sp.levelDb = levelDb;
+        if (cache.size() > 12) cache.erase (cache.begin());
+        cache.push_back (makeExcitation (sp));
+        return cache.back();
+    }
+
+    FFT fft;
+    std::vector<cpx> Y, work;
+    std::vector<Excitation> cache;
+};
+
+// -----------------------------------------------------------------------------
 //  Varrimentos automáticos (THD vs nível / THD vs frequência)
 // -----------------------------------------------------------------------------
 enum class SweepKind : int { None = 0, Level = 1, Frequency = 2 };

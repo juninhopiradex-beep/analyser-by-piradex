@@ -442,6 +442,33 @@ void CurveAnalyzerProcessor::runAnalysis()
         key.spec.levelDb = slot->levelDb.load();
         key.spec.sineHz  = slot->sineHz.load();
     }
+    // Sem Gerador ligado: tenta reconhecer o sinal de teste no próprio áudio (a cada 0,5 s)
+    const bool canDetect = rl == Role::Analyser && key.source == 0 && ! linked;
+    if (! canDetect) { autoSpec = {}; autoPending = {}; }
+    else
+    {
+        const int64_t S0 = writeCount.load (std::memory_order_acquire);
+        if (S0 - lastDetectS > (int64_t) (0.4 * fs) && S0 >= 2 * 4096)     // a cada 0,4 s de áudio
+        {
+            lastDetectS = S0;
+            const int len = (int) juce::jmin<int64_t> (S0, 2 * 65536);
+            detectHist.resize ((size_t) len);
+            for (int i = 0; i < len; ++i)
+                detectHist[(size_t) i] = ringWet[(size_t) ((S0 - len + i) & kRingMask)];
+            const auto d = detector.detect (detectHist, fs, paramValue (ids::level));
+            auto same = [] (const pca::SignalDetector::Result& a, const pca::SignalDetector::Result& b)
+            { return a.found == b.found && a.N == b.N && a.signal == b.signal && std::abs (a.sineHz - b.sineHz) < 1.0; };
+            if (d.found && same (d, autoPending)) autoSpec = d;      // confirmado duas vezes seguidas
+            autoPending = d;
+        }
+        if (autoSpec.found)
+        {
+            key.spec.N      = autoSpec.N;
+            key.spec.signal = autoSpec.signal;
+            if (autoSpec.signal == pca::Signal::Sine) key.spec.sineHz = autoSpec.sineHz;
+        }
+    }
+
     if (key.source == 1)   // música: sinal irrelevante, só conta o N
     {
         key.spec.signal = pca::Signal::Impulse;
@@ -479,6 +506,7 @@ void CurveAnalyzerProcessor::runAnalysis()
         // Ignora blocos que ainda contêm o sinal antigo (inclui folga para latência)
         const int64_t S = writeCount.load (std::memory_order_acquire);
         skipUntil = S + (music ? 0 : N + N / 2);
+        gateEma = 0.0;
         nextFrame = (skipUntil + N) / hop + 1;
     }
 
@@ -555,8 +583,29 @@ void CurveAnalyzerProcessor::runAnalysis()
                 }
             }
         }
-        else if (harmonics) harmAn.addFrame (frameWet.data());
-        else                respAn.addFrame (frameWet.data(), (e - N) + clockDelta.load());
+        else
+        {
+            // Só entram blocos que repetem o período anterior (sinal de teste). Música,
+            // plugins com modulação ou mudanças a meio do bloco ficam de fora.
+            bool periodic = true;
+            if (e - 2 * N >= 0 && S - (e - 2 * N) < kRingSize - safety)
+            {
+                frameDry.resize ((size_t) N);
+                for (int i = 0; i < N; ++i)
+                    frameDry[(size_t) i] = ringWet[(size_t) ((e - 2 * N + i) & kRingMask)];
+                const double res = pca::periodicResidual (frameWet.data(), frameDry.data(), N);
+                double e2 = 0.0;
+                for (int i = 0; i < N; ++i) e2 += (double) frameWet[(size_t) i] * frameWet[(size_t) i];
+                lastInDb = pca::powToDb (e2 / N);
+                periodic = res < 0.3;                   // inclui silêncio (-1)
+                if (res >= 0.0) gateEma += 0.2 * ((periodic ? 0.0 : 1.0) - gateEma);
+            }
+            if (periodic)
+            {
+                if (harmonics) harmAn.addFrame (frameWet.data());
+                else           respAn.addFrame (frameWet.data(), (e - N) + clockDelta.load());
+            }
+        }
 
         ++nextFrame;
         if (++processed > 64) break;
@@ -599,6 +648,8 @@ void CurveAnalyzerProcessor::runAnalysis()
     AnalysisResults r;
     r.spec   = key.spec;
     r.linked = linked;
+    r.autoDetected = canDetect && autoSpec.found;
+    r.notTestSignal = ! music && gateEma > 0.6;
     r.sidechainMissing = scMissing;
     r.hostMode = rl == Role::Host;
     r.hostLoaded = hostedLoaded.load();
@@ -639,8 +690,8 @@ void CurveAnalyzerProcessor::runAnalysis()
     {
         r.view = View::Harmonics;
         r.frames = harmAn.frames();
-        r.levelDb = harmAn.lastLevelDb();
-        r.hasSignal = r.frames > 0 && r.levelDb > -110.0;
+        r.levelDb = r.notTestSignal ? lastInDb : harmAn.lastLevelDb();
+        r.hasSignal = r.frames > 0 && r.levelDb > -110.0 && ! r.notTestSignal;
         harmAn.amplitudeSpectrum (tmpAmp);
         pca::buildPeakSpectrum (tmpAmp, N, fs, 1024, 20.0, 20000.0, r.curve);
         r.harm = harmAn.analyse();
@@ -652,8 +703,8 @@ void CurveAnalyzerProcessor::runAnalysis()
     {
         r.view = View::Response;
         r.frames = respAn.frames();
-        r.levelDb = respAn.lastLevelDb();
-        r.hasSignal = r.frames > 0 && r.levelDb > -110.0;
+        r.levelDb = r.notTestSignal ? lastInDb : respAn.lastLevelDb();
+        r.hasSignal = r.frames > 0 && r.levelDb > -110.0 && ! r.notTestSignal;
         respAn.transfer (tmpH, tmpValid);
         if (autoSync && r.frames > 0 && ! frozen)
             heldDelay = respAn.estimateDelay (tmpH);

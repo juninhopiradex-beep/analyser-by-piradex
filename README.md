@@ -18,12 +18,18 @@ python3 tools/nova_senha_beta.py 2027-03-31
 Cola a linha impressa em `kKeys` (`Source/License.cpp`) e faz push — o GitHub compila. Nunca escrevas as senhas em ficheiros do repositório.
 
 ## Instalação no Windows
-O GitHub Actions gera `ANALYSER-by-Piradex-1.1.0-Windows-Setup.exe` (instala o VST3 em `C:\Program Files\Common Files\VST3`) e um `.zip` para instalação manual. Não precisa do *Visual C++ Redistributable*. Como o instalador não tem assinatura digital, o Windows pode mostrar "O Windows protegeu o seu PC": **Mais informações → Executar mesmo assim**.
+O GitHub Actions gera `ANALYSER-by-Piradex-1.1.1-Windows-Setup.exe` (instala o VST3 em `C:\Program Files\Common Files\VST3`) e um `.zip` para instalação manual. Não precisa do *Visual C++ Redistributable*. Como o instalador não tem assinatura digital, o Windows pode mostrar "O Windows protegeu o seu PC": **Mais informações → Executar mesmo assim**.
 
 ## Instalação no Mac
-O GitHub Actions gera `ANALYSER-by-Piradex-1.1.0-macOS.dmg` com o instalador `.pkg` (VST3 + AU) e um `LEIA-ME.txt`. Como o instalador não está assinado com um certificado da Apple, na primeira vez: **botão direito no .pkg → Abrir → Abrir**.
+O GitHub Actions gera `ANALYSER-by-Piradex-1.1.1-macOS.dmg` com o instalador `.pkg` (VST3 + AU) e um `LEIA-ME.txt`. Como o instalador não está assinado com um certificado da Apple, na primeira vez: **botão direito no .pkg → Abrir → Abrir**.
 
 ---
+
+## Novidades na 1.1.1
+
+- **Já não desenha curvas falsas com música.** O Analisador verifica se o que entra é mesmo o sinal de teste (o sinal do Gerador repete-se exatamente a cada período; a música não). Se for música, mostra *"Isto é música, não o sinal de teste"* com dois atalhos: **MODO HOST** e **MÚSICA COM SIDECHAIN**.
+- **Reconhece o Gerador sozinho**, mesmo sem ligação por Grupo (grupo diferente, DAW que isola plugins em processos separados, ou Sinal/FFT diferentes no Analisador): descobre o tipo de sinal (impulso, sweep, ruído rosa ou seno + frequência) e o tamanho da FFT a partir do áudio. Só o **Nível** tem de ser igual ao do Gerador.
+- Blocos instáveis (botão a mexer a meio do bloco, plugins com modulação) deixam de entrar na média.
 
 ## Novidades na 1.1
 

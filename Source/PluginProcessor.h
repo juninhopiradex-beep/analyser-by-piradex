@@ -43,6 +43,8 @@ struct AnalysisResults
     pca::ExcitationSpec  spec;
     double delaySamples   = 0.0;       // latência detetada/aplicada
     bool   latencyReliable = false;    // relógio comum (Host, música, ou DAW a tocar)
+    bool   notTestSignal  = false;     // o que entra não é o sinal de teste (ex.: música)
+    bool   autoDetected   = false;     // sinal de teste reconhecido sem ligação por grupo
     double levelDb        = -200.0;    // nível do sinal analisado
     double dryLevelDb     = -200.0;    // modo música: nível do dry
     int    frames         = 0;
@@ -215,6 +217,12 @@ private:
     std::vector<float>                tmpIr;
     std::vector<pca::SweepPoint>      sweepPts;
     int                               sweepRunSeen = -1, sweepPtsKind = 0;
+    // Validação do sinal e deteção automática (sem Gerador ligado)
+    double                            gateEma = 0.0, lastInDb = -200.0;
+    pca::SignalDetector               detector;
+    pca::SignalDetector::Result       autoSpec, autoPending;
+    int64_t                           lastDetectS = -1000000000;
+    std::vector<float>                detectHist;
 
     mutable juce::CriticalSection resultsLock;
     AnalysisResults       results;

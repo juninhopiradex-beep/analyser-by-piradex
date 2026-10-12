@@ -37,9 +37,11 @@ public:
 class GraphView : public juce::Component
 {
 public:
-    explicit GraphView (CurveAnalyzerProcessor& p) : proc (p) {}
+    explicit GraphView (CurveAnalyzerProcessor& p);
+    void resized() override;
+    std::function<void (int action)> onAction;     // 1 = modo Host, 2 = música por sidechain
     void setResults (const AnalysisResults& r);
-    void setTab (ViewTab t) { if (t != tab) { tab = t; repaint(); } }
+    void setTab (ViewTab t) { if (t != tab) { tab = t; updateActionButtons(); repaint(); } }
     void tick();                                 // anima a curva até ao valor novo (30 Hz)
     void paint (juce::Graphics&) override;
     void mouseMove (const juce::MouseEvent& e) override  { hover = e.position; hovering = true; repaint(); }
@@ -56,7 +58,8 @@ private:
     void drawWave (juce::Graphics&);
     void drawSpectrum (juce::Graphics&);
     void drawSweep (juce::Graphics&);
-    void drawMessage (juce::Graphics&, const juce::String& title, const juce::String& sub);
+    void drawMessage (juce::Graphics&, const juce::String& title, const juce::String& sub, float height = 120.0f);
+    void updateActionButtons();
     void drawReadout (juce::Graphics&, const juce::String& text);
     bool drawWaitingIfNeeded (juce::Graphics&);
     juce::Path curvePath (const pca::Curve& c, std::function<float (float)> yOf, bool phase) const;
@@ -64,6 +67,7 @@ private:
     CurveAnalyzerProcessor& proc;
     AnalysisResults res;
     pca::Curve shown;          // curva no ecrã (anima até res.curve)
+    juce::TextButton hostAction, musicAction;
     ViewTab tab = ViewTab::Curve;
     juce::Point<float> hover;
     bool hovering = false;

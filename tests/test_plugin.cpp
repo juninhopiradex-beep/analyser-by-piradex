@@ -262,6 +262,73 @@ int main()
     snapshot (*mus, "ui_musica.png", 0);
     snapshot (*mus, "ui_espetro.png", 2);
 
+    // ---------------------------------------------------------------- Caso real: Analisador sozinho com música
+    std::printf ("Analisador sozinho a receber música (sem Gerador), sinal = Impulso\n");
+    {
+        auto solo = std::make_unique<CurveAnalyzerProcessor>();
+        setParam (*solo, ids::role, 0); setParam (*solo, ids::group, 1); setParam (*solo, ids::signal, 0);
+        solo->prepareToPlay (fs, bs);
+        juce::AudioBuffer<float> sb (2, bs);
+        for (int b = 0; b < 400; ++b)
+        {
+            for (int n = 0; n < bs; ++n) { const float d = 3.0f * pinkSample(); sb.setSample (0, n, d); sb.setSample (1, n, d); }
+            solo->processBlock (sb, midi);
+            juce::Thread::sleep (2);
+        }
+        juce::Thread::sleep (300);
+        solo->getResults (r);
+        check (r.notTestSignal, "música reconhecida como 'não é sinal de teste'", r.notTestSignal, 1);
+        check (! r.hasSignal, "nenhuma curva falsa desenhada", r.hasSignal, 0);
+        check (! r.autoDetected, "não inventa um sinal de teste", r.autoDetected, 0);
+        snapshot (*solo, "ui_sem_gerador_musica.png", 0);
+    }
+
+    // ---------------------------------------------------------------- Gerador sem ligação (outro processo/grupo)
+    std::printf ("Gerador sem ligação: Gerador grupo 3 (Sweep, FFT 16384) -> EQ -> Analisador grupo 4 (Impulso, FFT 8192)\n");
+    {
+        auto g2 = std::make_unique<CurveAnalyzerProcessor>();
+        auto a2 = std::make_unique<CurveAnalyzerProcessor>();
+        setParam (*g2, ids::role, 1); setParam (*g2, ids::group, 3); setParam (*g2, ids::signal, 1); setParam (*g2, ids::fftSize, 2);
+        setParam (*a2, ids::role, 0); setParam (*a2, ids::group, 4); setParam (*a2, ids::signal, 0); setParam (*a2, ids::fftSize, 1);
+        g2->prepareToPlay (fs, bs); a2->prepareToPlay (fs, bs);
+        Biquad e2 = Biquad::peak (fs, 5000, 1.0, 6.0);
+        juce::AudioBuffer<float> b2 (2, bs);
+        for (int b = 0; b < 500; ++b)
+        {
+            b2.clear();
+            g2->processBlock (b2, midi);
+            for (int n = 0; n < bs; ++n) { const float y = e2.process (b2.getSample (0, n)); b2.setSample (0, n, y); b2.setSample (1, n, y); }
+            a2->processBlock (b2, midi);
+            juce::Thread::sleep (2);
+        }
+        juce::Thread::sleep (300);
+        a2->getResults (r);
+        check (! r.linked && r.autoDetected, "sinal reconhecido sem ligação", r.autoDetected, 1);
+        check (r.spec.signal == pca::Signal::LogSweep && r.spec.N == 16384, "detetou Sweep log + FFT 16384",
+               (double) (int) r.spec.signal * 100000 + r.spec.N, 100000 + 16384);
+        check (r.hasSignal && std::abs (curveAt (r.curve, 5000) - 6.0) < 0.2, "curva correta @ 5 kHz (dB)", curveAt (r.curve, 5000), 6.0);
+        check (std::abs (curveAt (r.curve, 500) - refUp.magDb (500, fs)) < 0.2, "curva correta @ 500 Hz (dB)", curveAt (r.curve, 500), refUp.magDb (500, fs));
+        snapshot (*a2, "ui_detetado.png", 0);
+
+        // Seno: também reconhecido -> harmónicos
+        setParam (*g2, ids::signal, 3); setParam (*g2, ids::sineFreq, 440); setParam (*g2, ids::level, -6);
+        setParam (*a2, ids::level, -6);
+        g2->prepareToPlay (fs, bs);
+        for (int b = 0; b < 500; ++b)
+        {
+            b2.clear();
+            g2->processBlock (b2, midi);
+            for (int n = 0; n < bs; ++n) { const float y = (float) sat (b2.getSample (0, n)); b2.setSample (0, n, y); b2.setSample (1, n, y); }
+            a2->processBlock (b2, midi);
+            juce::Thread::sleep (2);
+        }
+        juce::Thread::sleep (300);
+        a2->getResults (r);
+        check (r.autoDetected && r.view == View::Harmonics, "seno reconhecido -> harmónicos", (double) (int) r.view, (double) (int) View::Harmonics);
+        check (std::abs (r.harm.f0 - 440.0) < 3.0, "frequência do seno detetada (Hz)", r.harm.f0, 440);
+        check (r.harm.thdPct > 1.0 && r.harm.thdPct < 30.0, "THD plausível (%)", r.harm.thdPct, 10);
+    }
+
     // ---------------------------------------------------------------- Modo Host com VST3 real
     const auto testEq = juce::SystemStats::getEnvironmentVariable ("ANL_TESTEQ", {});
     if (testEq.isNotEmpty())

@@ -117,6 +117,34 @@ void PxLookAndFeel::drawLinearSlider (juce::Graphics& g, int x, int y, int w, in
 // =============================================================================
 //  Gráfico
 // =============================================================================
+GraphView::GraphView (CurveAnalyzerProcessor& p) : proc (p)
+{
+    hostAction.setButtonText (U ("MODO HOST (1 INSTÂNCIA)"));
+    musicAction.setButtonText (U ("MÚSICA COM SIDECHAIN"));
+    hostAction.setToggleState (true, juce::dontSendNotification);   // contorno verde
+    hostAction.onClick  = [this] { if (onAction) onAction (1); };
+    musicAction.onClick = [this] { if (onAction) onAction (2); };
+    addChildComponent (hostAction);
+    addChildComponent (musicAction);
+}
+
+void GraphView::resized() { updateActionButtons(); }
+
+// Atalhos sob a mensagem "não é o sinal de teste" (só num Analisador sem Gerador ligado)
+void GraphView::updateActionButtons()
+{
+    const bool show = res.notTestSignal && ! res.hostMode && ! res.linked && res.view != View::Music
+                   && tab != ViewTab::Sweep;
+    hostAction.setVisible (show);
+    musicAction.setVisible (show);
+    if (! show) return;
+    const auto p = plotArea();
+    auto row = juce::Rectangle<float> (0.0f, 0.0f, 452.0f, 38.0f).withCentre ({ p.getCentreX(), p.getCentreY() + 36.0f });
+    hostAction.setBounds (row.removeFromLeft (228.0f).toNearestInt());
+    row.removeFromLeft (16.0f);
+    musicAction.setBounds (row.toNearestInt());
+}
+
 juce::Rectangle<float> GraphView::plotArea() const
 {
     auto r = getLocalBounds().toFloat();
@@ -141,6 +169,7 @@ void GraphView::setResults (const AnalysisResults& r)
                          && r.view == res.view && shown.freq.size() == r.curve.freq.size() && ! r.curve.empty();
     res = r;
     if (! animatable) shown = res.curve;
+    updateActionButtons();
     repaint();
 }
 
@@ -195,10 +224,11 @@ juce::Path GraphView::curvePath (const pca::Curve& c, std::function<float (float
     return path;
 }
 
-void GraphView::drawMessage (juce::Graphics& g, const juce::String& title, const juce::String& sub)
+void GraphView::drawMessage (juce::Graphics& g, const juce::String& title, const juce::String& sub, float height)
 {
     const auto p = plotArea();
-    auto box = p.withSizeKeepingCentre (juce::jmin (p.getWidth() - 40.0f, 760.0f), 120.0f);
+    auto box = p.withSizeKeepingCentre (juce::jmin (p.getWidth() - 40.0f, 760.0f), height);
+    if (height > 120.0f) box.setY (p.getCentreY() - 120.0f);
     g.setColour (juce::Colours::black.withAlpha (0.78f));
     g.fillRoundedRectangle (box, 8.0f);
     g.setColour (pxcol::outline);
@@ -208,7 +238,7 @@ void GraphView::drawMessage (juce::Graphics& g, const juce::String& title, const
     g.drawText (title, box.removeFromTop (48.0f).reduced (16.0f, 0.0f), juce::Justification::centredBottom);
     g.setColour (pxcol::text);
     g.setFont (juce::Font (juce::FontOptions (14.5f)));
-    g.drawFittedText (sub, box.reduced (20.0f, 8.0f).toNearestInt(), juce::Justification::centredTop, 3);
+    g.drawFittedText (sub, box.reduced (20.0f, 8.0f).toNearestInt(), juce::Justification::centredTop, 4);
 }
 
 void GraphView::drawReadout (juce::Graphics& g, const juce::String& text)
@@ -236,6 +266,23 @@ bool GraphView::drawWaitingIfNeeded (juce::Graphics& g)
         drawMessage (g, U ("Sidechain inativo"),
                      U ("Ative o sidechain desta instância e envie para ele o sinal ORIGINAL (antes do plugin/hardware). "
                         "A entrada principal deve receber o sinal processado. Ou use o modo HOST."));
+        return true;
+    }
+    if (res.notTestSignal)
+    {
+        if (res.hostMode)
+            drawMessage (g, U ("A saída do plugin está sempre a mudar"),
+                         U ("O plugin carregado varia no tempo (modulação, chorus, compressor a mexer…). "
+                            "Use Fonte = Música ou Média 16 ou mais."));
+        else if (res.linked)
+            drawMessage (g, U ("Isto não é o sinal do Gerador"),
+                         U ("O Gerador do grupo está ligado, mas o que chega aqui é outro som. "
+                            "O Gerador tem de estar NA MESMA FAIXA, antes do plugin, e o Analisador depois dele."));
+        else
+            drawMessage (g, U ("Isto é música, não o sinal de teste"),
+                         U ("Para ver a curva de um plugin com música use um dos modos abaixo. Para medir com sinal de teste: "
+                            "ANALYSER em GERADOR antes do plugin e outro ANALYSER em ANALISADOR depois (mesmo Grupo)."),
+                         190.0f);
         return true;
     }
     if (res.hasSignal) return false;
@@ -948,6 +995,13 @@ CurveAnalyzerEditor::CurveAnalyzerEditor (CurveAnalyzerProcessor& p)
         addChildComponent (b);
 
     addAndMakeVisible (graph);
+    graph.onAction = [this] (int a)
+    {
+        if (a == 1) { setParam (ids::role, (float) Role::Host); setParam (ids::source, 1.0f); }
+        else        { setParam (ids::source, 1.0f); }
+        setParam (ids::view, (float) ViewTab::Curve);
+        proc.requestReset();
+    };
 
     login.onUnlocked = [this] { login.setVisible (false); repaint(); };
     addChildComponent (login);
@@ -1140,10 +1194,11 @@ void CurveAnalyzerEditor::updateEnablement()
 
     // Sinal: editável no Gerador e no Host; no Analisador só sem Gerador ligado
     const bool sigEditable = gen || (host && ! music) || (ana && ! last.linked && ! music);
-    signal.box.setEnabled (sigEditable);
+    const bool detected = ana && last.autoDetected;      // sinal/FFT vêm do áudio; o Nível continua manual
+    signal.box.setEnabled (sigEditable && ! detected);
     level.setEnabled (sigEditable);
-    fft.box.setEnabled (sigEditable || (music && ! gen));
-    sine.setEnabled (sigEditable && sineSig);
+    fft.box.setEnabled ((sigEditable && ! detected) || (music && ! gen));
+    sine.setEnabled (sigEditable && sineSig && ! detected);
 
     for (juce::Component* c : { (juce::Component*) &source.box, (juce::Component*) &channel.box, (juce::Component*) &averages.box,
                                 (juce::Component*) &smoothing.box, (juce::Component*) &range.box, (juce::Component*) &latency,
@@ -1188,9 +1243,11 @@ void CurveAnalyzerEditor::updateEnablement()
     juce::String chip; juce::Colour col = pxcol::dim;
     if (ana && ! music)
     {
-        chip = last.linked ? U ("● LIGADO AO GERADOR · GRUPO ") + juce::String (proc.paramIndex (ids::group))
-                           : U ("○ SEM GERADOR NO GRUPO ") + juce::String (proc.paramIndex (ids::group));
-        col = last.linked ? pxcol::green : pxcol::even;
+        const auto grp = juce::String (proc.paramIndex (ids::group));
+        if (last.notTestSignal)      { chip = U ("○ NÃO É O SINAL DE TESTE"); col = pxcol::even; }
+        else if (last.linked)        { chip = U ("● LIGADO AO GERADOR · GRUPO ") + grp; col = pxcol::green; }
+        else if (last.autoDetected)  { chip = U ("● SINAL DE TESTE DETETADO"); col = pxcol::green; }
+        else                         { chip = U ("○ SEM GERADOR NO GRUPO ") + grp; col = pxcol::even; }
     }
     else if (ana && music)
     {
@@ -1266,7 +1323,7 @@ void CurveAnalyzerEditor::timerCallback()
     graph.repaint();
 
     // Ligado a um Gerador: os controlos de sinal mostram (e guardam) as definições reais dele
-    if (last.linked && proc.role() == Role::Analyser && proc.paramIndex (ids::source) == 0 && last.sweepKind == 0)
+    if ((last.linked || last.autoDetected) && proc.role() == Role::Analyser && proc.paramIndex (ids::source) == 0 && last.sweepKind == 0)
     {
         auto sync = [this] (const juce::String& id, float plain)
         {
@@ -1276,7 +1333,7 @@ void CurveAnalyzerEditor::timerCallback()
         };
         sync (ids::signal, (float) (int) last.spec.signal);
         sync (ids::fftSize, (float) std::log2 (last.spec.N / 4096));
-        sync (ids::level, (float) last.spec.levelDb);
+        if (last.linked) sync (ids::level, (float) last.spec.levelDb);
         sync (ids::sineFreq, (float) last.spec.sineHz);
     }
     updateEnablement();
@@ -1294,7 +1351,9 @@ void CurveAnalyzerEditor::timerCallback()
         case View::Response:
         case View::Harmonics:
             t = last.hostMode ? U ("HOST · ") + (last.hostLoaded ? last.hostName : U ("sem plugin"))
-                              : (last.linked ? U ("Ligado ao Gerador do grupo ") + grp : U ("Sem Gerador no grupo ") + grp + U (" — definições próprias"));
+              : last.linked ? U ("Ligado ao Gerador do grupo ") + grp
+              : last.autoDetected ? U ("Sinal reconhecido no áudio (Gerador sem ligação) · acerte o Nível igual ao do Gerador")
+              : U ("Sem Gerador no grupo ") + grp;
             t << U (" · ") << signalName (s.signal) << " " << juce::String (s.levelDb, 1) << U (" dBFS · FFT ") << s.N
               << " (" << juce::String (binHz, 1) << " Hz/bin)";
             if (last.view == View::Response)
