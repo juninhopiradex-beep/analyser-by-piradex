@@ -2,8 +2,11 @@ name: Build MIXSPACE by Piradex (macOS + Windows)
 
 on:
   push:
-    branches: [main]
+    branches: [main, mixspace]
   workflow_dispatch:
+
+# Repo próprio (mixspace-by-piradex): publica release + ramo "builds".
+# Ramo temporário noutro repo: só guarda os binários no ramo "mixspace-builds" (sem releases).
 
 env:
   VERSAO: "0.1.0"
@@ -167,6 +170,7 @@ jobs:
           merge-multiple: true
 
       - name: Publicar pré-lançamento (macOS + Windows)
+        if: endsWith(github.repository, '/mixspace-by-piradex')
         run: |
           ls -la dist
           TAG="v$VERSAO-beta"
@@ -177,10 +181,12 @@ jobs:
             --prerelease --target "$GITHUB_SHA" --title "MIXSPACE by Piradex $VERSAO (beta)" \
             --notes "macOS (10.13+, Intel e Apple Silicon): MIXSPACE-by-Piradex-$VERSAO-macOS.dmg · Windows 10/11 64 bits: MIXSPACE-by-Piradex-$VERSAO-Windows-Setup.exe (ou o .zip para instalação manual)."
 
-      - name: Guardar binários no ramo "builds"
+      - name: Guardar binários num ramo próprio
         run: |
+          if [[ "$GITHUB_REPOSITORY" == */mixspace-by-piradex ]]; then RAMO=builds; else RAMO=mixspace-builds; fi
+          echo "Ramo de binários: $RAMO"
           cd dist
-          git init -q -b builds
+          git init -q -b "$RAMO"
           git -c user.name="github-actions" -c user.email="actions@github.com" add -A
-          git -c user.name="github-actions" -c user.email="actions@github.com" commit -q -m "Build $GITHUB_SHA"
-          git push -f "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" builds
+          git -c user.name="github-actions" -c user.email="actions@github.com" commit -q -m "MIXSPACE build $GITHUB_SHA"
+          git push -f "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" "$RAMO"
