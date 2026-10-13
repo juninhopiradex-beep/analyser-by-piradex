@@ -11,6 +11,9 @@ MIXSPACE by Piradex __VERSAO__ — instalação (macOS 10.13 ou superior, Intel 
    Se não aparecer, peça ao DAW para procurar plugins de novo
    (Logic: Gestor de Plug-ins → Restaurar e voltar a analisar).
 
+4) Na primeira vez que abrir o plugin, introduza a senha.
+   (Sem senha o MIXSPACE deixa passar o áudio sem processar.)
+
 Como usar em 10 segundos:
   1. Insira o MIXSPACE no canal do beat / instrumental.
   2. Envie a voz para a entrada sidechain do MIXSPACE

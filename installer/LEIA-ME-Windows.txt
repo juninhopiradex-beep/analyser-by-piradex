@@ -7,6 +7,7 @@ Depois de instalar:
   1. Abra o DAW (Ableton, FL Studio, Cubase, Reaper, Studio One, Bitwig...).
   2. Peça ao DAW para procurar plugins de novo, se não aparecer logo.
   3. Procure "MIXSPACE by Piradex" (fabricante: Piradex).
+  4. Na primeira vez que abrir o plugin, introduza a senha.
 
 Como usar em 10 segundos:
   1. Insira o MIXSPACE no canal do beat / instrumental.

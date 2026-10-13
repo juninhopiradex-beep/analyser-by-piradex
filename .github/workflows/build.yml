@@ -9,7 +9,7 @@ on:
 # Ramo temporário noutro repo: só guarda os binários no ramo "mixspace-builds" (sem releases).
 
 env:
-  VERSAO: "0.1.0"
+  VERSAO: "0.2.0"
 
 jobs:
   testes-dsp:

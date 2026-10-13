@@ -7,5 +7,6 @@ Instala:
   • AU    → /Library/Audio/Plug-Ins/Components
 
 Compatível com macOS 10.13 ou superior, Macs Intel e Apple Silicon.
+Ao abrir o plugin pela primeira vez é pedida a senha.
 
 www.beatfreakstudio.com · suporte: juninhopiradex@hotmail.com

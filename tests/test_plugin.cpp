@@ -102,6 +102,56 @@ int main()
     const double fs = 48000.0;
     const int bs = 512;
 
+    // ---------------------------------------------------------------- Login
+    std::printf ("Login\n");
+    {
+        auto& L = lic::License::get();
+        L.lock();
+        check (! L.isUnlocked(), "bloqueado no arranque", L.isUnlocked(), 0);
+
+        // o PBKDF2 do plugin tem de dar o mesmo que o gerador de senhas (Python hashlib)
+        const auto h = lic::License::pbkdf2 ("TESTE-MIXSPACE-0000", lic::License::fromHex ("00112233445566778899aabbccddeeff"),
+                                             lic::License::kIterations, 32);
+        const bool same = juce::String::toHexString (h.getData(), (int) h.getSize(), 0)
+                          == "9d32cb46c1a6652cc5190fbf03823c03b9de041d632d37b11586114b854dee2b";
+        check (same, "PBKDF2 igual ao do nova_senha_beta.py", same, 1);
+
+        const auto t0 = juce::Time::getMillisecondCounterHiRes();
+        const auto r = L.tryPassword ("BETA-AAAA-BBBB-CCCC", false);
+        const double ms = juce::Time::getMillisecondCounterHiRes() - t0;
+        check (r == lic::License::Result::Wrong && ! L.isUnlocked(), "senha errada recusada", (double) (int) r, 1);
+        std::printf ("    verificação de uma senha (6 chaves): %.0f ms\n", ms);
+
+        // bloqueado: mesmo com SPACE 100 e voz no sidechain, o beat passa intacto (com a latência)
+        MixspaceProcessor p;
+        stereoWithSidechain (p);
+        p.prepareToPlay (fs, bs);
+        setParam (p, ids::space, 100.0f);
+        setParam (p, ids::range, 12.0f);
+        Gen g (fs, 1000, 2);
+        std::vector<float> in, out;
+        runBlocks (p, g, 80, bs, true, &in, &out);
+        double err = 0;
+        for (size_t i = 4096; i < out.size(); ++i) err = std::max (err, (double) std::abs (out[i] - in[i - 2048]));
+        check (err < 1e-6, "bloqueado: áudio passa sem processar", err, 0);
+
+        {
+            juce::AudioProcessor::BusesLayout l;
+            l.inputBuses.add (juce::AudioChannelSet::stereo()); l.inputBuses.add (juce::AudioChannelSet::stereo());
+            l.outputBuses.add (juce::AudioChannelSet::stereo());
+            std::unique_ptr<juce::AudioProcessorEditor> ed (p.createEditor());
+            snapshot (*ed, "ui_login.png");
+        }
+
+        L.unlockForTests();
+        check (L.isUnlocked(), "desbloqueado (build de teste)", L.isUnlocked(), 1);
+        std::vector<float> in2, out2;
+        runBlocks (p, g, 120, bs, true, &in2, &out2);
+        double diff = 0;
+        for (size_t i = 30000; i < out2.size(); ++i) diff = std::max (diff, (double) std::abs (out2[i] - in2[i - 2048]));
+        check (diff > 1e-3, "desbloqueado: o MIXSPACE volta a processar", diff, 0.001);
+    }
+
     std::printf ("Buses e latência\n");
     {
         MixspaceProcessor p;

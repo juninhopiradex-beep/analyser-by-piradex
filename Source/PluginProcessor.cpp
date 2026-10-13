@@ -22,6 +22,9 @@ MixspaceProcessor::MixspaceProcessor()
     pScListen = apvts.getRawParameterValue (ids::scListen);
     pBypass   = apvts.getRawParameterValue (ids::bypass);
     bypassParam = apvts.getParameter (ids::bypass);
+
+    lic::License::get();   // carrega o estado da licença na thread de mensagens (nunca na de áudio)
+    startTimer (30000);
 }
 
 bool MixspaceProcessor::isBusesLayoutSupported (const BusesLayout& layouts) const
@@ -113,7 +116,10 @@ void MixspaceProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Mi
     engine.setParams (p);
     engine.setAnalysisWanted (editorOpen.load());
 
-    bypassMix.setTargetValue (hostBypass || pBypass->load() > 0.5f ? 1.0f : 0.0f);
+    // Sem sessão iniciada o MIXSPACE é transparente: o beat passa intacto (com a mesma latência,
+    // para não haver saltos quando se introduz a senha ou quando uma senha beta expira).
+    const bool locked = ! lic::License::get().isUnlocked();
+    bypassMix.setTargetValue (locked || hostBypass || pBypass->load() > 0.5f ? 1.0f : 0.0f);
     deltaMix.setTargetValue (pDelta->load() > 0.5f ? 1.0f : 0.0f);
     scListenMix.setTargetValue (pScListen->load() > 0.5f ? 1.0f : 0.0f);
 

@@ -53,8 +53,28 @@ MainView::MainView (MixspaceProcessor& p, std::function<void (float)> scaleFn)
     for (auto* b : { &deltaButton, &bypassButton, &advancedButton })
         addAndMakeVisible (b);
 
+    login.onUnlocked = [this] { updateLock(); };
+    addChildComponent (login);
+    updateLock();
+
     setSize (kW, kH);
     startTimerHz (4);
+}
+
+void MainView::updateLock()
+{
+    const bool locked = ! lic::License::get().isUnlocked();
+    login.setVisible (locked);
+    if (locked) login.toFront (true);
+    repaint();
+}
+
+void MainView::timerCallback()
+{
+    repaint (headerRight);
+    lic::License::get().checkExpiry();
+    if (login.isVisible() == lic::License::get().isUnlocked())
+        updateLock();
 }
 
 void MainView::showAdvanced (bool show)
@@ -77,6 +97,8 @@ void MainView::resized()
     deltaButton.setBounds (40, 506, 96, 26);
     bypassButton.setBounds (144, 506, 96, 26);
     advancedButton.setBounds (664, 506, 124, 26);
+
+    login.setBounds (getLocalBounds());
 }
 
 void MainView::paint (juce::Graphics& g)
@@ -175,8 +197,15 @@ void MainView::showMenu()
 
     juce::PopupMenu menu;
     menu.addSectionHeader ("MIXSPACE by Piradex " JucePlugin_VersionString);
+    if (lic::License::get().isUnlocked())
+        menu.addItem (lic::License::get().statusText(), false, false, nullptr);
     menu.addSubMenu ("Tamanho da interface", sizes);
     menu.addSeparator();
+    menu.addItem (juce::String::fromUTF8 ("Terminar sessão neste computador"), lic::License::get().isUnlocked(), false, [this]
+    {
+        lic::License::get().lock();
+        updateLock();
+    });
     menu.addItem ("Sobre o MIXSPACE", []
     {
         juce::NativeMessageBox::showAsync (juce::MessageBoxOptions()

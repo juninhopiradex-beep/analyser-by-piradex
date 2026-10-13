@@ -4,6 +4,7 @@
 #include "MixspaceLookAndFeel.h"
 #include "SpectrumDisplay.h"
 #include "AdvancedPanel.h"
+#include "LoginOverlay.h"
 
 // Página principal, desenhada a 820 × 560 e escalada como um todo (80–200 %, Retina/HiDPI).
 class MainView : public juce::Component, private juce::Timer
@@ -17,7 +18,8 @@ public:
     void mouseDown (const juce::MouseEvent&) override;
 
 private:
-    void timerCallback() override { repaint (headerRight); }
+    void timerCallback() override;
+    void updateLock();
     void showAdvanced (bool show);
     void showMenu();
 
@@ -34,6 +36,8 @@ private:
     std::unique_ptr<SA> spaceAtt, rangeAtt, focusAtt;
     juce::TextButton deltaButton { "Delta" }, bypassButton { "Bypass" }, advancedButton { "Advanced" };
     std::unique_ptr<BA> deltaAtt, bypassAtt;
+
+    LoginOverlay login;   // sempre por cima de tudo
 
     juce::Rectangle<int> logoArea { 18, 8, 260, 36 }, headerRight { 560, 8, 242, 36 };
 

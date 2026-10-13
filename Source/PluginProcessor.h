@@ -5,6 +5,7 @@
 #include <atomic>
 #include "Params.h"
 #include "SpaceCore.h"
+#include "License.h"
 
 // Dados de análise partilhados entre o áudio e a interface (sem locks)
 struct SharedAnalysis
@@ -21,7 +22,7 @@ struct SharedAnalysis
     }
 };
 
-class MixspaceProcessor : public juce::AudioProcessor
+class MixspaceProcessor : public juce::AudioProcessor, private juce::Timer
 {
 public:
     MixspaceProcessor();
@@ -76,6 +77,8 @@ public:
     SharedAnalysis analysis;
 
 private:
+    // Se uma senha beta expirar a meio da sessão, o plugin volta a ficar bloqueado (passa o áudio sem processar)
+    void timerCallback() override { lic::License::get().checkExpiry(); }
     void selectEngine (int quality);
     void publishAnalysis (const mxs::SpaceEngine& e);
 

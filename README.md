@@ -46,6 +46,17 @@ O alvo passa por **Smooth** (difusão entre bandas), **Attack/Release** por band
 
 Latência = tamanho da FFT (42,7 ms em MIX a 48 kHz), reportada à DAW para compensação automática.
 
+## Acesso por senha
+
+Ao abrir o plugin pela primeira vez aparece o ecrã de login. Há uma senha **master** (licença completa) e senhas **BETA** com data de expiração. Com "Lembrar neste computador" a senha só é pedida uma vez.
+
+- O plugin não contém as senhas: só um salt aleatório e o hash PBKDF2-HMAC-SHA256 (60 000 iterações) de cada uma (`Source/License.cpp`).
+- **Sem sessão iniciada, o MIXSPACE deixa passar o beat intacto** (com a mesma latência), para nunca estragar a sessão de ninguém. Se uma senha beta expirar a meio da sessão, volta a ficar assim.
+- "Terminar sessão neste computador": clicar no logótipo MIXSPACE.
+- Nova senha beta: `python3 tools/nova_senha_beta.py 2027-03-31` → cola a linha em `kKeys` e faz push.
+
+![Login](docs/ui_login.png)
+
 ## Compilar
 
 Igual aos outros plugins Piradex: o **GitHub Actions** compila tudo a cada push para `main` (ficheiro `.github/workflows/build.yml`):
@@ -53,7 +64,7 @@ Igual aos outros plugins Piradex: o **GitHub Actions** compila tudo a cada push 
 1. testes numéricos do núcleo DSP (Linux);
 2. macOS universal (Intel + Apple Silicon, macOS 10.13+): VST3 + AU, validação com `auval` (nativo e Rosetta) e `pluginval`, instalador `.pkg` dentro de um `.dmg`;
 3. Windows 10/11 x64: VST3 com runtime embutido, `pluginval`, instalador Inno Setup `.exe` + `.zip`;
-4. publica um pré-lançamento `v0.1.0-beta` e guarda os binários no ramo `builds`.
+4. publica um pré-lançamento `v0.2.0-beta` e guarda os binários no ramo `builds`.
 
 Localmente:
 
@@ -83,11 +94,11 @@ tests/                      testes do núcleo e de integração (com capturas da
 installer/                  .pkg/.dmg (macOS) e Inno Setup (Windows)
 ```
 
-## Estado (v0.1.0 — MVP)
+## Estado (v0.2.0 — MVP + login)
 
-Feito: Main + Sidechain, spectrum display, SPACE, RANGE, FOCUS, Low/High Cut, Attack/Release, Smooth, Stereo/Mid/Side/L/R, Delta, SC Listen, Freeze, Masking meter, Bypass click-free, Live/Mix/Master, interface redimensionável.
+Feito: Main + Sidechain, spectrum display, SPACE, RANGE, FOCUS, Low/High Cut, Attack/Release, Smooth, Stereo/Mid/Side/L/R, Delta, SC Listen, Freeze, Masking meter, Bypass click-free, Live/Mix/Master, interface redimensionável, acesso por senha (master + chaves beta).
 
-Próximas fases: AUTO (Auto Space), LEARN, Auto Timing, Transient Protect, Auto Mid / Stereo Focus, Vocal Intelligence + Formant Priority, **Vocal Lock**, Auto Level, Lookahead, A/B, Undo/Redo, presets de fábrica (Vocal, Afro/Urban, Kick→Bass…), protecção por serial.
+Próximas fases: AUTO (Auto Space), LEARN, Auto Timing, Transient Protect, Auto Mid / Stereo Focus, Vocal Intelligence + Formant Priority, **Vocal Lock**, Auto Level, Lookahead, A/B, Undo/Redo, presets de fábrica (Vocal, Afro/Urban, Kick→Bass…).
 
 ---
 www.beatfreakstudio.com · suporte: juninhopiradex@hotmail.com

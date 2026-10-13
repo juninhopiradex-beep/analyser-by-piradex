@@ -1,8 +1,8 @@
 ; Instalador Windows do MIXSPACE by Piradex (Inno Setup 6)
-; Compilado no GitHub Actions: ISCC /DVersao=0.1.0 installer\windows.iss
+; Compilado no GitHub Actions: ISCC /DVersao=0.2.0 installer\windows.iss
 
 #ifndef Versao
-  #define Versao "0.1.0"
+  #define Versao "0.2.0"
 #endif
 
 [Setup]

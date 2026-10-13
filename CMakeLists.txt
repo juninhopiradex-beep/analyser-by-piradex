@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.22)
-project(MixspaceByPiradex VERSION 0.1.0)
+project(MixspaceByPiradex VERSION 0.2.0)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -50,7 +50,9 @@ target_sources(Mixspace PRIVATE
     Source/PluginProcessor.cpp
     Source/PluginEditor.cpp
     Source/SpectrumDisplay.cpp
-    Source/AdvancedPanel.cpp)
+    Source/AdvancedPanel.cpp
+    Source/License.cpp
+    Source/LoginOverlay.cpp)
 
 target_include_directories(Mixspace PRIVATE Source)
 
@@ -63,6 +65,7 @@ target_compile_definitions(Mixspace PUBLIC
 target_link_libraries(Mixspace
     PRIVATE
         juce::juce_audio_utils
+        juce::juce_cryptography
         juce::juce_dsp
     PUBLIC
         juce::juce_recommended_config_flags
@@ -75,7 +78,8 @@ if(MXS_BUILD_TESTS)
     add_executable(mxs_core_test tests/test_core.cpp)
     target_include_directories(mxs_core_test PRIVATE Source)
 
-    target_compile_definitions(Mixspace PUBLIC JUCE_MODAL_LOOPS_PERMITTED=1)
+    # MXS_ALLOW_TEST_UNLOCK só existe nas builds de teste, nunca no plugin distribuído
+    target_compile_definitions(Mixspace PUBLIC JUCE_MODAL_LOOPS_PERMITTED=1 MXS_ALLOW_TEST_UNLOCK=1)
     add_executable(mxs_plugin_test tests/test_plugin.cpp)
     target_include_directories(mxs_plugin_test PRIVATE Source $<TARGET_PROPERTY:Mixspace,INCLUDE_DIRECTORIES>)
     target_compile_definitions(mxs_plugin_test PRIVATE $<TARGET_PROPERTY:Mixspace,COMPILE_DEFINITIONS>)
