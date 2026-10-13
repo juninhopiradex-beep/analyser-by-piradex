@@ -1,0 +1,11 @@
+MIXSPACE by Piradex __VERSAO__
+
+Spectral sidechain: abre espaço para a voz no beat, retirando só as frequências que estão a colidir.
+
+Instala:
+  • VST3  → /Library/Audio/Plug-Ins/VST3
+  • AU    → /Library/Audio/Plug-Ins/Components
+
+Compatível com macOS 10.13 ou superior, Macs Intel e Apple Silicon.
+
+www.beatfreakstudio.com · suporte: juninhopiradex@hotmail.com

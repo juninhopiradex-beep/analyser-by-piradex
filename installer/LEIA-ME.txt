@@ -1,0 +1,27 @@
+MIXSPACE by Piradex __VERSAO__ — instalação (macOS 10.13 ou superior, Intel e Apple Silicon)
+
+1) Abra o "MIXSPACE by Piradex __VERSAO__.pkg".
+   Se o Mac disser que é de um "programador não identificado":
+   clique com o botão direito (ou Ctrl+clique) no .pkg → Abrir → Abrir.
+   (No macOS 13+: Definições do Sistema → Privacidade e Segurança → "Abrir na mesma".)
+
+2) Siga o instalador (pede a senha de administrador do Mac).
+
+3) Abra o DAW e procure "MIXSPACE by Piradex" (fabricante: Piradex).
+   Se não aparecer, peça ao DAW para procurar plugins de novo
+   (Logic: Gestor de Plug-ins → Restaurar e voltar a analisar).
+
+Como usar em 10 segundos:
+  1. Insira o MIXSPACE no canal do beat / instrumental.
+  2. Envie a voz para a entrada sidechain do MIXSPACE
+     (Logic: menu "Side Chain" no topo do plugin; Ableton: "Sidechain" no dispositivo;
+      Cubase/Studio One/Reaper: activar a entrada sidechain e fazer um envio da voz).
+  3. Rode SPACE (os resultados mais musicais ficam entre 15 e 35 %).
+
+Instalação manual (sem o .pkg): copie a pasta "Plugins" para
+  /Library/Audio/Plug-Ins/VST3 e /Library/Audio/Plug-Ins/Components
+e no Terminal:
+  sudo xattr -cr "/Library/Audio/Plug-Ins/VST3/MIXSPACE by Piradex.vst3"
+  sudo xattr -cr "/Library/Audio/Plug-Ins/Components/MIXSPACE by Piradex.component"
+
+Suporte: juninhopiradex@hotmail.com · www.beatfreakstudio.com

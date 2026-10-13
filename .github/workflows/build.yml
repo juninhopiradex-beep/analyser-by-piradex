@@ -1,0 +1,186 @@
+name: Build MIXSPACE by Piradex (macOS + Windows)
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  VERSAO: "0.1.0"
+
+jobs:
+  testes-dsp:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Testes numéricos do núcleo DSP
+        run: |
+          g++ -O2 -std=c++17 -ISource tests/test_core.cpp -o test_core
+          ./test_core
+
+  macos:
+    needs: testes-dsp
+    runs-on: macos-14
+    env:
+      ART: build/Mixspace_artefacts/Release
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Xcode
+        run: xcodebuild -version
+
+      - name: Configurar (universal Intel + Apple Silicon, macOS 10.13+)
+        run: >
+          cmake -B build -G Xcode
+          -DCMAKE_OSX_ARCHITECTURES="arm64;x86_64"
+          -DCMAKE_OSX_DEPLOYMENT_TARGET=10.13
+
+      - name: Compilar VST3 + AU
+        run: cmake --build build --config Release --target Mixspace_VST3 Mixspace_AU -- -quiet
+
+      - name: Verificar arquiteturas e versão mínima do macOS
+        run: |
+          for b in "$ART/VST3/MIXSPACE by Piradex.vst3/Contents/MacOS/MIXSPACE by Piradex" \
+                   "$ART/AU/MIXSPACE by Piradex.component/Contents/MacOS/MIXSPACE by Piradex"; do
+            echo "== $b"
+            archs=$(lipo -archs "$b"); echo "arquiteturas: $archs"
+            [[ "$archs" == *x86_64* && "$archs" == *arm64* ]] || { echo "FALTA uma arquitetura"; exit 1; }
+            minos=$(otool -arch x86_64 -l "$b" | awk '/LC_VERSION_MIN_MACOSX|LC_BUILD_VERSION/{f=1} f&&/(version|minos)/{print $2; exit}')
+            echo "macOS mínimo (Intel): $minos"
+            [[ "$minos" == "10.13" ]] || { echo "Versão mínima inesperada"; exit 1; }
+          done
+
+      - name: Assinar ad-hoc
+        run: |
+          codesign --force --deep -s - "$ART/VST3/MIXSPACE by Piradex.vst3"
+          codesign --force --deep -s - "$ART/AU/MIXSPACE by Piradex.component"
+
+      - name: Validar Audio Unit (auval, Apple Silicon e Intel/Rosetta)
+        run: |
+          mkdir -p ~/Library/Audio/Plug-Ins/Components
+          cp -R "$ART/AU/MIXSPACE by Piradex.component" ~/Library/Audio/Plug-Ins/Components/
+          killall -9 AudioComponentRegistrar || true
+          sleep 3
+          auval -a | grep -i piradex || true
+          auval -v aufx PxMS Prdx
+          softwareupdate --install-rosetta --agree-to-license || true
+          arch -x86_64 auval -v aufx PxMS Prdx
+
+      - name: Validar com pluginval
+        continue-on-error: true
+        run: |
+          curl -sSL -o pluginval.zip https://github.com/Tracktion/pluginval/releases/latest/download/pluginval_macOS.zip
+          unzip -q pluginval.zip
+          set -o pipefail
+          pluginval.app/Contents/MacOS/pluginval --strictness-level 5 --timeout-ms 300000 \
+            --validate "$ART/VST3/MIXSPACE by Piradex.vst3" 2>&1 | tee pluginval-macOS.log
+
+      - name: Criar instalador .pkg e .dmg
+        run: |
+          mkdir -p root/Library/Audio/Plug-Ins/VST3 root/Library/Audio/Plug-Ins/Components
+          cp -R "$ART/VST3/MIXSPACE by Piradex.vst3" root/Library/Audio/Plug-Ins/VST3/
+          cp -R "$ART/AU/MIXSPACE by Piradex.component" root/Library/Audio/Plug-Ins/Components/
+          sed -i '' "s/__VERSAO__/$VERSAO/g" installer/distribution.xml installer/welcome.txt installer/LEIA-ME.txt
+          pkgbuild --root root --identifier com.piradex.mixspace.plugins --version "$VERSAO" \
+                   --install-location / --scripts installer/scripts mixspace-plugins.pkg
+          productbuild --distribution installer/distribution.xml --resources installer \
+                       --package-path . "MIXSPACE by Piradex $VERSAO.pkg"
+          mkdir -p "dmg/Plugins"
+          cp "MIXSPACE by Piradex $VERSAO.pkg" dmg/
+          cp installer/LEIA-ME.txt dmg/
+          cp -R "$ART/VST3/MIXSPACE by Piradex.vst3" "$ART/AU/MIXSPACE by Piradex.component" dmg/Plugins/
+          hdiutil create -volname "MIXSPACE by Piradex" -srcfolder dmg -ov -format UDZO "MIXSPACE-by-Piradex-$VERSAO-macOS.dmg"
+          ls -la *.pkg *.dmg
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MIXSPACE-by-Piradex-macOS
+          path: |
+            MIXSPACE-by-Piradex-*-macOS.dmg
+            pluginval-macOS.log
+
+  windows:
+    needs: testes-dsp
+    runs-on: windows-2022
+    env:
+      ART: build/Mixspace_artefacts/Release
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configurar (x64, Visual Studio 2022)
+        run: cmake -B build -G "Visual Studio 17 2022" -A x64
+
+      - name: Compilar VST3
+        run: cmake --build build --config Release --target Mixspace_VST3 --parallel 4
+
+      - name: Verificar binário x64 e dependências
+        shell: pwsh
+        run: |
+          $dll = "$env:ART/VST3/MIXSPACE by Piradex.vst3/Contents/x86_64-win/MIXSPACE by Piradex.vst3"
+          if (!(Test-Path $dll)) { throw "VST3 não encontrado" }
+          $vs = & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -latest -property installationPath
+          $dumpbin = Get-ChildItem "$vs\VC\Tools\MSVC" -Recurse -Filter dumpbin.exe | Where-Object { $_.FullName -like "*Hostx64\x64*" } | Select-Object -First 1
+          & $dumpbin.FullName /headers $dll | Select-String "machine"
+          $deps = & $dumpbin.FullName /dependents $dll
+          $deps
+          if ($deps -match "VCRUNTIME|MSVCP") { throw "Depende do VC++ Redistributable (runtime devia estar embutido)" }
+
+      - name: Validar com pluginval
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          Invoke-WebRequest -Uri https://github.com/Tracktion/pluginval/releases/latest/download/pluginval_Windows.zip -OutFile pluginval.zip
+          Expand-Archive pluginval.zip -DestinationPath pv
+          & .\pv\pluginval.exe --strictness-level 5 --timeout-ms 300000 --validate "$env:ART/VST3/MIXSPACE by Piradex.vst3" 2>&1 | Tee-Object -FilePath pluginval-Windows.log
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Criar instalador (Inno Setup) e .zip
+        shell: pwsh
+        run: |
+          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          if (!(Test-Path $iscc)) { choco install innosetup -y --no-progress; }
+          & $iscc "/DVersao=$env:VERSAO" installer\windows.iss
+          if ($LASTEXITCODE -ne 0) { throw "Inno Setup falhou" }
+          Compress-Archive -Path "$env:ART/VST3/MIXSPACE by Piradex.vst3", installer/LEIA-ME-Windows.txt -DestinationPath "out-win/MIXSPACE-by-Piradex-$env:VERSAO-Windows-VST3.zip"
+          Get-ChildItem out-win
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MIXSPACE-by-Piradex-Windows
+          path: |
+            out-win/*
+            pluginval-Windows.log
+
+  publicar:
+    needs: [macos, windows]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Publicar pré-lançamento (macOS + Windows)
+        run: |
+          ls -la dist
+          TAG="v$VERSAO-beta"
+          gh release delete "$TAG" -y --cleanup-tag -R "$GITHUB_REPOSITORY" || true
+          FICHEIROS=$(find dist -type f \( -name '*.dmg' -o -name '*.exe' -o -name '*.zip' \))
+          echo "$FICHEIROS"
+          gh release create "$TAG" $FICHEIROS -R "$GITHUB_REPOSITORY" \
+            --prerelease --target "$GITHUB_SHA" --title "MIXSPACE by Piradex $VERSAO (beta)" \
+            --notes "macOS (10.13+, Intel e Apple Silicon): MIXSPACE-by-Piradex-$VERSAO-macOS.dmg · Windows 10/11 64 bits: MIXSPACE-by-Piradex-$VERSAO-Windows-Setup.exe (ou o .zip para instalação manual)."
+
+      - name: Guardar binários no ramo "builds"
+        run: |
+          cd dist
+          git init -q -b builds
+          git -c user.name="github-actions" -c user.email="actions@github.com" add -A
+          git -c user.name="github-actions" -c user.email="actions@github.com" commit -q -m "Build $GITHUB_SHA"
+          git push -f "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" builds
