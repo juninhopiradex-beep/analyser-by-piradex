@@ -9,6 +9,7 @@
 #pragma once
 #include "Spectrum.h"
 #include "Dynamics.h"
+#include <cstdio>
 #include <string>
 #include <vector>
 

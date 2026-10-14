@@ -227,14 +227,11 @@ public:
         size.onChange = [this] { applyScale (1.0f + 0.25f * (size.getSelectedId() - 1)); };
         lpQ.addItemList (names::lpQualities(), 1);
         lpQAtt = std::make_unique<juce::ComboBoxParameterAttachment> (*proc.apvts.getParameter (ids::lpQuality), lpQ);
-        look.setSliderStyle (juce::Slider::LinearBar);
-        look.setTextBoxStyle (juce::Slider::NoTextBox, false, 0, 0);
         lookAtt = std::make_unique<juce::SliderParameterAttachment> (*proc.apvts.getParameter (ids::lookahead), look, nullptr);
-        look.onValueChange = [this] { repaint(); };
         logout.onClick = [this] { lic::License::get().lock(); if (onLogout) onLogout(); };
         logout.setEnabled (lic::License::get().isUnlocked());
         for (auto* c : std::initializer_list<juce::Component*> { &precision, &speed, &slope, &dbRange, &size, &lpQ, &look, &logout }) addAndMakeVisible (c);
-        setSize (380, 470);
+        setSize (380, 400);
     }
     std::function<void()> onLogout;
 
@@ -272,10 +269,6 @@ public:
         {
             g.drawText (juce::String::fromUTF8 ("GRÁFICO E JANELA"), 16, labels[3].getY() - 18, 200, 16, juce::Justification::centredLeft);
             g.drawText ("PROCESSAMENTO", 16, labels[5].getY() - 18, 200, 16, juce::Justification::centredLeft);
-            g.setFont (fonts::mono (11.5f)); g.setColour (pal::text);
-            g.drawText (juce::String (look.getValue(), 1) + " ms", look.getBounds().reduced (8, 0), juce::Justification::centredRight);
-            g.setFont (fonts::ui (10.5f)); g.setColour (pal::textFaint);
-            g.drawText (juce::String::fromUTF8 ("só no modo Natural"), look.getBounds().reduced (8, 0), juce::Justification::centredLeft);
         }
         g.setFont (fonts::ui (12.0f, 1));
         g.setColour (lic::License::get().isUnlocked() ? pal::ok : pal::textDim);
@@ -290,7 +283,7 @@ private:
     EQMotionProcessor& proc;
     std::function<void (float)> applyScale, applyDb;
     juce::ComboBox precision, speed, slope, dbRange, size, lpQ;
-    juce::Slider look;
+    ValueBar look { juce::String::fromUTF8 ("só Natural"), [] (double v) { return juce::String (v, 1).replace (".", ",") + " ms"; } };
     std::unique_ptr<juce::ComboBoxParameterAttachment> lpQAtt;
     std::unique_ptr<juce::SliderParameterAttachment> lookAtt;
     juce::TextButton logout { juce::String::fromUTF8 ("Terminar sessão") };

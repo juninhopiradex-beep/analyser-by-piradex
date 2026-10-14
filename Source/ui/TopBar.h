@@ -60,11 +60,12 @@ public:
     void resized() override
     {
         auto r = getLocalBounds().reduced (10, 9);
-        logoArea = r.removeFromLeft (176);
+        compact = getWidth() < 1180;
+        logoArea = r.removeFromLeft (compact ? 124 : 176);
         power.setBounds (r.removeFromRight (32)); r.removeFromRight (6);
         settings.setBounds (r.removeFromRight (32)); r.removeFromRight (4);
         instances.setBounds (r.removeFromRight (32)); r.removeFromRight (10);
-        smart.setBounds (r.removeFromRight (112)); r.removeFromRight (12);
+        smart.setBounds (r.removeFromRight (compact ? 96 : 112)); r.removeFromRight (compact ? 8 : 12);
         phase.setBounds (r.removeFromRight (132)); r.removeFromRight (8);
         procMode.setBounds (r.removeFromRight (106)); r.removeFromRight (14);
         copyAB.setBounds (r.removeFromRight (30)); r.removeFromRight (2);
@@ -105,9 +106,12 @@ public:
         g.drawText ("EQ", t.removeFromLeft (wEQ), juce::Justification::centredLeft);
         g.setColour (pal::accent);
         g.drawText ("Motion", t.removeFromLeft (wM), juce::Justification::centredLeft);
-        g.setColour (pal::textFaint);
-        g.setFont (fonts::ui (10.5f, 1));
-        g.drawText ("by Piradex", t.withTrimmedTop (6), juce::Justification::centredLeft);
+        if (! compact)
+        {
+            g.setColour (pal::textFaint);
+            g.setFont (fonts::ui (10.5f, 1));
+            g.drawText ("by Piradex", t.withTrimmedTop (6), juce::Justification::centredLeft);
+        }
     }
 
 private:
@@ -143,6 +147,7 @@ private:
 
     EQMotionProcessor& proc;
     juce::Rectangle<int> logoArea;
+    bool compact = false;
     IconButton prev { "Anterior", [] { juce::Path p; p.startNewSubPath (0.62f, 0.25f); p.lineTo (0.38f, 0.5f); p.lineTo (0.62f, 0.75f); return p; }() };
     IconButton next { "Seguinte", [] { juce::Path p; p.startNewSubPath (0.38f, 0.25f); p.lineTo (0.62f, 0.5f); p.lineTo (0.38f, 0.75f); return p; }() };
     juce::TextButton presetName { "Default" };

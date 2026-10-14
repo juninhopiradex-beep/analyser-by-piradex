@@ -484,6 +484,31 @@ int main()
         setP (*r, ids::phase, 2);
         snapshot (*r, "docs/ui_mid_side_linear.png", [] (EQMotionEditor& e) { e.getGraph().selectBand (1); });
 
+        // tamanho mínimo e janelas flutuantes
+        {
+            auto sm = make();
+            sm->state.loadFactory (presets::factory()[17]);
+            std::unique_ptr<juce::AudioProcessorEditor> ed (sm->createEditor());
+            ed->setSize (1100, 680);
+            ed->getChildComponent (0);
+            if (auto* e = dynamic_cast<EQMotionEditor*> (ed.get())) e->getGraph().selectBand (1);
+            pump (300);
+            auto img = ed->createComponentSnapshot (ed->getLocalBounds(), true, 1.0f);
+            juce::File f (juce::File::getCurrentWorkingDirectory().getChildFile ("docs/ui_minimo.png"));
+            f.deleteFile(); { juce::FileOutputStream os (f); juce::PNGImageFormat().writeImageToStream (img, os); }
+            auto shot = [] (juce::Component& c, const char* file)
+            {
+                pump (100);
+                auto im = c.createComponentSnapshot (c.getLocalBounds(), true, 1.0f);
+                juce::File ff (juce::File::getCurrentWorkingDirectory().getChildFile (file));
+                ff.deleteFile(); juce::FileOutputStream os (ff); juce::PNGImageFormat().writeImageToStream (im, os);
+                std::printf ("  captura: %s\n", file);
+            };
+            EQMLookAndFeel lf;
+            PresetBrowser pb (*sm); pb.setLookAndFeel (&lf); shot (pb, "docs/ui_presets.png"); pb.setLookAndFeel (nullptr);
+            SettingsPanel sp (*sm, [] (float) {}, [] (float) {}, 12.0f); sp.setLookAndFeel (&lf); shot (sp, "docs/ui_definicoes.png"); sp.setLookAndFeel (nullptr);
+        }
+
         lic::License::get().lock();
         auto l = make();
         snapshot (*l, "docs/ui_login.png");

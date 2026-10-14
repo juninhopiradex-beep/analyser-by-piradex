@@ -66,7 +66,7 @@ EQMotionEditor::EQMotionEditor (EQMotionProcessor& p)
     if (sel >= 0 && proc.state.band (sel).active) graph.selectBand (sel);
 
     setResizable (true, true);
-    setResizeLimits (1000, 660, 2700, 1700);
+    setResizeLimits (1100, 680, 2700, 1700);
     const float sc = (float) (double) ui.getProperty ("scale", 1.0);
     setSize ((int) ui.getProperty ("w", juce::roundToInt (kBaseW * sc)), (int) ui.getProperty ("h", juce::roundToInt (kBaseH * sc)));
     if ((bool) ui.getProperty ("smartOpen", false)) openSmartOps (true);

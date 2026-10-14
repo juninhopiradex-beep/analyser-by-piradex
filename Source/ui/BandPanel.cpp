@@ -255,45 +255,49 @@ void BandInspector::timerCallback()
 
 void BandInspector::resized()
 {
-    auto r = getLocalBounds().reduced (12, 8);
+    // layout compacto quando a janela é estreita (portáteis)
+    const bool compact = getWidth() < 1060;
+    const int typeW = compact ? 60 : 68, knobW = compact ? 70 : 78, utilW = compact ? 118 : 128;
+    auto r = getLocalBounds().reduced (compact ? 10 : 12, 8);
     // coluna do tipo
-    auto left = r.removeFromLeft (212);
+    auto left = r.removeFromLeft (typeW * 3 + 4);
     headerArea = left.removeFromTop (22);
     left.removeFromTop (4);
     auto grid = left.removeFromTop (88);
     for (int t = 0; t < typeButtons.size(); ++t)
     {
         const int col = t % 3, row = t / 3;
-        typeButtons[t]->setBounds (grid.getX() + col * 70, grid.getY() + row * 29, 68, 27);
+        typeButtons[t]->setBounds (grid.getX() + col * (typeW + 2), grid.getY() + row * 29, typeW, 27);
     }
     left.removeFromTop (6);
-    slope.setBounds (left.removeFromTop (26).withWidth (208));
+    slope.setBounds (left.removeFromTop (26));
 
-    r.removeFromLeft (14);
-    auto knobs = r.removeFromLeft (3 * 78);
-    for (auto* k : { &freq, &gain, &q }) k->setBounds (knobs.removeFromLeft (78).withTrimmedBottom (4));
+    r.removeFromLeft (compact ? 8 : 14);
+    auto knobs = r.removeFromLeft (3 * knobW);
+    for (auto* k : { &freq, &gain, &q }) k->setBounds (knobs.removeFromLeft (knobW).withTrimmedBottom (4));
 
-    r.removeFromLeft (8);
-    auto util = r.removeFromLeft (128);
+    r.removeFromLeft (compact ? 4 : 8);
+    auto util = r.removeFromLeft (utilW);
     util.removeFromTop (16);
     place.setBounds (util.removeFromTop (26));
     util.removeFromTop (8);
     auto row = util.removeFromTop (26);
-    listen.setBounds (row.removeFromLeft (62)); row.removeFromLeft (4); bypass.setBounds (row);
+    const int half = (utilW - 4) / 2;
+    listen.setBounds (row.removeFromLeft (half)); row.removeFromLeft (4); bypass.setBounds (row);
     util.removeFromTop (6);
     row = util.removeFromTop (24);
-    reset.setBounds (row.removeFromLeft (62)); row.removeFromLeft (4); remove.setBounds (row);
+    reset.setBounds (row.removeFromLeft (half)); row.removeFromLeft (4); remove.setBounds (row);
 
-    r.removeFromLeft (18);
+    r.removeFromLeft (compact ? 14 : 18);
     dynArea = r;
     auto top = r.removeFromTop (26);
-    dynOn.setBounds (top.removeFromLeft (112));
-    const int segW = juce::jmax (100, (top.getWidth() - 16) / 3);
-    dir.setBounds (top.removeFromLeft (segW).reduced (2, 1)); top.removeFromLeft (6);
-    src.setBounds (top.removeFromLeft (segW).reduced (2, 1)); top.removeFromLeft (6);
-    det.setBounds (top.removeFromLeft (segW).reduced (2, 1));
+    dynOn.setBounds (top.removeFromLeft (compact ? 100 : 112));
+    const int segW = (top.getWidth() - 12) / 3;
+    dir.setBounds (top.removeFromLeft (segW).reduced (1, 1)); top.removeFromLeft (6);
+    src.setBounds (top.removeFromLeft (segW).reduced (1, 1)); top.removeFromLeft (6);
+    det.setBounds (top.removeFromLeft (segW).reduced (1, 1));
     r.removeFromTop (6);
-    meterArea = r.removeFromRight (46);
+    meterArea = r.removeFromRight (compact ? 38 : 46);
     const int kw = juce::jmin (74, r.getWidth() / 7);
     for (auto* k : { &thr, &range, &ratio, &atk, &hold, &rel, &knee }) k->setBounds (r.removeFromLeft (kw).withTrimmedBottom (4));
 }
