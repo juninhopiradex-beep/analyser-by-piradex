@@ -101,10 +101,92 @@ static void snapshot (EQMotionProcessor& p, const char* file, std::function<void
     std::printf ("  captura: %s\n", file);
 }
 
+// Sinal "tipo música": rosa (−4,5 dB/oct), bombo e notas sustentadas
+static std::vector<double> musicLike (int n, unsigned seed)
+{
+    std::mt19937 rng (seed); std::normal_distribution<double> nd (0, 1);
+    std::vector<double> v ((size_t) n);
+    double b0 = 0, b1 = 0, b2 = 0, lp = 0;
+    for (int i = 0; i < n; ++i)
+    {
+        const double w = nd (rng) * 0.05;
+        b0 = 0.99765 * b0 + w * 0.0990460; b1 = 0.96300 * b1 + w * 0.2965164; b2 = 0.57000 * b2 + w * 1.0526913;
+        double pink = (b0 + b1 + b2 + w * 0.1848) * 0.5;
+        lp += 0.35 * (pink - lp);
+        const double t = i / 48000.0, beat = std::fmod (t, 0.5);
+        const double kick = std::exp (-beat * 18) * std::sin (kTwoPi * (55 + 90 * std::exp (-beat * 40)) * beat) * 0.55;
+        const double notes = 0.05 * std::sin (kTwoPi * 220 * t) + 0.035 * std::sin (kTwoPi * 330 * t) + 0.02 * std::sin (kTwoPi * 1320 * t);
+        v[(size_t) i] = 0.6 * (0.7 * lp + 0.3 * pink) + kick + notes;
+    }
+    return v;
+}
+
+static void capture2x (EQMotionProcessor& p, const char* file, int w, int h, std::function<void (EQMotionEditor&)> prep)
+{
+    std::unique_ptr<juce::AudioProcessorEditor> ed (p.createEditor());
+    auto* e = dynamic_cast<EQMotionEditor*> (ed.get());
+    ed->setSize (w, h);
+    if (prep) prep (*e);
+    auto x = musicLike (48000, 3);
+    for (int k = 0; k < 8; ++k) { run (p, x); pump (60); }
+    pump (250);
+    auto img = ed->createComponentSnapshot (ed->getLocalBounds(), true, 2.0f);
+    juce::File f (juce::File::getCurrentWorkingDirectory().getChildFile (file));
+    f.getParentDirectory().createDirectory();
+    f.deleteFile();
+    juce::FileOutputStream os (f);
+    juce::PNGImageFormat().writeImageToStream (img, os);
+    std::printf ("  captura 2x: %s\n", file);
+}
+
+static int marketingCaptures()
+{
+    const double fs = 48000;
+    {   // 1. principal: voz com bandas dinâmicas
+        auto p = make();
+        p->state.loadFactory (presets::factory()[1]);
+        capture2x (*p, "docs/marketing/eqmotion-principal@2x.png", 1220, 760, [] (EQMotionEditor& e) { e.getGraph().selectBand (3); });
+    }
+    {   // 2. Smart Ops com sugestão
+        auto q = make (fs, 512, true);
+        q->state.setBand (0, mk (FilterType::LowCut, 32, 0, 0.7071, Slope::dB24));
+        q->state.setBand (1, mk (FilterType::HighShelf, 11000, 2.0, 0.6));
+        q->smartSetOp (SmartOp::Deresonate);
+        InstanceRegistry::get().editorOpened();
+        q->smartStartLearning();
+        auto x = musicLike ((int) (fs * 4), 9);
+        for (size_t i = 0; i < x.size(); ++i) x[i] += 0.02 * std::sin (kTwoPi * 742 * (double) i / fs) + 0.015 * std::sin (kTwoPi * 2950 * (double) i / fs);
+        for (size_t s0 = 0; s0 < x.size(); s0 += 12000)
+        {
+            std::vector<double> part (x.begin() + (long) s0, x.begin() + (long) std::min (x.size(), s0 + 12000));
+            run (*q, part); pump (40);
+        }
+        pump (200);
+        q->smartStopLearning();
+        q->smart.amount = 0.55;
+        q->smartRecompute();
+        InstanceRegistry::get().editorClosed();
+        capture2x (*q, "docs/marketing/eqmotion-smart-ops@2x.png", 1220, 760, [] (EQMotionEditor& e) { e.openSmartOps (true); e.getGraph().selectBand (1); });
+    }
+    {   // 3. Mid/Side em fase linear com dinâmica
+        auto r = make();
+        auto a = mk (FilterType::LowCut, 120, 0, 0.7071, Slope::dB24); a.placement = Placement::Side;
+        auto b = mk (FilterType::Bell, 2500, 2.5, 0.8); b.placement = Placement::Mid;
+        auto c = mk (FilterType::HighShelf, 9000, 3, 0.7); c.placement = Placement::Side;
+        auto d = mk (FilterType::Bell, 280, 0, 1.2); d.dynamic = true; d.thresholdDb = -40; d.rangeDb = -5; d.placement = Placement::Mid;
+        r->state.setBand (0, a); r->state.setBand (1, b); r->state.setBand (2, c); r->state.setBand (3, d);
+        setP (*r, ids::procMode, 2);
+        setP (*r, ids::phase, 2);
+        capture2x (*r, "docs/marketing/eqmotion-mid-side@2x.png", 1220, 760, [] (EQMotionEditor& e) { e.getGraph().selectBand (3); });
+    }
+    return 0;
+}
+
 int main()
 {
     juce::ScopedJuceInitialiser_GUI gui;
     lic::License::get().unlockForTests();
+    if (std::getenv ("EQM_CAPTURAS") != nullptr) return marketingCaptures();
     const double fs = 48000;
 
     std::printf ("Transparência e precisão (Zero Latency)\n");
@@ -279,6 +361,9 @@ int main()
         check (e < 1e-6, "sem sessão: áudio passa sem processar", e, 0);
         bool expired = false;
         check (lic::License::matchPassword ("senha-errada", expired) < 0, "senha errada rejeitada", 0, 0);
+        // senha pública de divulgação (imagens de loja): válida até 01/11/2026
+        const int promo = lic::License::matchPassword ("EQM-D3N6-VZRH-PT33", expired);
+        check ((promo >= 0) != expired, "senha de divulgação reconhecida", promo, 0);
         lic::License::get().unlockForTests();
     }
 

@@ -32,6 +32,10 @@ static const KeyEntry kKeys[] =
     { "beta-5", Kind::Trial,
       "24ea1fbf31b3009431923420ac70bdd6",
       "9885b1b2dfa6ffdc06402524f0d8e9315099c0728f9f56c17c3d9dade49dc56a", 2026, 12, 31 },
+
+    { "promo-loja", Kind::Trial,
+      "ce6d515ca53e53c7833a604fd0e51aa8",
+      "be7be21837b7c318edb91276c6e0b080292045e0b3f0303b88b70a1733467c9f", 2026, 11, 1 },
 };
 
 // ---------------------------------------------------------------------------
