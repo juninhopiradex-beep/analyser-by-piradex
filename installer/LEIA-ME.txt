@@ -1,0 +1,31 @@
+EQMotion by Piradex __VERSAO__ — instalação (macOS 10.13 ou superior, Intel e Apple Silicon)
+
+1) Abra o "EQMotion by Piradex __VERSAO__.pkg".
+   Se o Mac disser que é de um "programador não identificado":
+   clique com o botão direito (ou Ctrl+clique) no .pkg → Abrir → Abrir.
+   (No macOS 13+: Definições do Sistema → Privacidade e Segurança → "Abrir na mesma".)
+
+2) Siga o instalador (pede a senha de administrador do Mac).
+
+3) Abra o DAW e procure "EQMotion by Piradex" (fabricante: Piradex).
+   Se não aparecer, peça ao DAW para procurar plugins de novo
+   (Logic: Gestor de Plug-ins → Restaurar e voltar a analisar).
+
+4) Na primeira vez que abrir o plugin, introduza a senha.
+   (Sem senha o EQMotion deixa passar o áudio sem processar.)
+
+Primeiros passos:
+  • Duplo clique no gráfico cria uma banda; arraste para mudar frequência e ganho;
+    roda do rato muda o Q; duplo clique no nó apaga.
+  • "Dinâmica" no painel de baixo transforma qualquer sino/shelf numa banda dinâmica.
+  • "Smart Ops": escolha a operação, Aprender enquanto a música toca, Parar,
+    veja a sugestão tracejada e só depois Aplicar (Reverter não mexe nas suas edições).
+  • ZL / NP / LP: Zero Latency, Natural Phase e Linear Phase.
+
+Instalação manual (sem o .pkg): copie a pasta "Plugins" para
+  /Library/Audio/Plug-Ins/VST3 e /Library/Audio/Plug-Ins/Components
+e no Terminal:
+  sudo xattr -cr "/Library/Audio/Plug-Ins/VST3/EQMotion by Piradex.vst3"
+  sudo xattr -cr "/Library/Audio/Plug-Ins/Components/EQMotion by Piradex.component"
+
+Suporte: juninhopiradex@hotmail.com · www.beatfreakstudio.com

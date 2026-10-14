@@ -1,0 +1,4 @@
+#!/bin/sh
+# Atualiza a cache de Audio Units para o DAW ver o plugin logo
+killall -9 AudioComponentRegistrar >/dev/null 2>&1
+exit 0

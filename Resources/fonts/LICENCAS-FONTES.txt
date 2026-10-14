@@ -1,0 +1,7 @@
+Fontes incluídas no EQMotion by Piradex (embutidas no plugin, subconjunto latino):
+
+  Inter (Regular, Medium, SemiBold) — © The Inter Project Authors (https://rsms.me/inter)
+  JetBrains Mono (Regular)          — © The JetBrains Mono Project Authors (https://www.jetbrains.com/lp/mono/) — OFL 1.1 / Apache 2.0
+
+Ambas distribuídas sob a SIL Open Font License 1.1 (https://openfontlicense.org).
+A OFL permite embutir e redistribuir as fontes com software, incluindo software comercial.

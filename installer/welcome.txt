@@ -1,0 +1,14 @@
+EQMotion by Piradex __VERSAO__
+
+Equalizador dinâmico de 24 bandas que mostra o que está a fazer:
+dinâmica por banda, Mid/Side, fase linear, Smart Ops com pré-visualização,
+Delta, A/B com auto gain e carácter analógico opcional.
+
+Instala:
+  • VST3  → /Library/Audio/Plug-Ins/VST3
+  • AU    → /Library/Audio/Plug-Ins/Components
+
+Compatível com macOS 10.13 ou superior, Macs Intel e Apple Silicon.
+Ao abrir o plugin pela primeira vez é pedida a senha.
+
+www.beatfreakstudio.com · suporte: juninhopiradex@hotmail.com
