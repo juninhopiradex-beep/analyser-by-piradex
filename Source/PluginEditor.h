@@ -36,8 +36,10 @@ private:
     std::unique_ptr<SA> spaceAtt, rangeAtt, focusAtt;
     juce::TextButton deltaButton { "Delta" }, bypassButton { "Bypass" }, advancedButton { "Advanced" };
     std::unique_ptr<BA> deltaAtt, bypassAtt;
+    piradex::i18n::LanguageSwitch langSwitch;
 
     LoginOverlay login;   // sempre por cima de tudo
+    piradex::i18n::Binder lang;
 
     juce::Rectangle<int> logoArea { 18, 8, 260, 36 }, headerRight { 560, 8, 242, 36 };
 

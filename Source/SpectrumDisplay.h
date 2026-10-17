@@ -45,6 +45,7 @@ private:
     int hoverEdge = 0, dragEdge = 0;
 
     juce::TextButton freezeButton { "Freeze" };
+    piradex::i18n::Binder lang;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (SpectrumDisplay)
 };

@@ -23,9 +23,9 @@ MainView::MainView (MixspaceProcessor& p, std::function<void (float)> scaleFn)
     addAndMakeVisible (display);
     addChildComponent (advanced);
 
-    setupKnob (space, true, juce::String::fromUTF8 ("SPACE — quanto o MIXSPACE reage: com que facilidade a colisão vira redução"));
-    setupKnob (range, false, juce::String::fromUTF8 ("RANGE — redução máxima em qualquer região (teto em dB)"));
-    setupKnob (focus, false, juce::String::fromUTF8 ("FOCUS — 0 % reage a todo o espectro do sidechain, 100 % só às regiões dominantes"));
+    setupKnob (space, true, {});
+    setupKnob (range, false, {});
+    setupKnob (focus, false, {});
     spaceAtt = std::make_unique<SA> (proc.apvts, ids::space, space);
     rangeAtt = std::make_unique<SA> (proc.apvts, ids::range, range);
     focusAtt = std::make_unique<SA> (proc.apvts, ids::focus, focus);
@@ -38,20 +38,43 @@ MainView::MainView (MixspaceProcessor& p, std::function<void (float)> scaleFn)
 
     deltaButton.setClickingTogglesState (true);
     deltaButton.getProperties().set ("accent", (juce::int64) pal::red.getARGB());
-    deltaButton.setTooltip ("DELTA — ouvir apenas o que está a ser retirado do beat");
     deltaAtt = std::make_unique<BA> (proc.apvts, ids::delta, deltaButton);
 
     bypassButton.setClickingTogglesState (true);
     bypassButton.getProperties().set ("accent", (juce::int64) pal::bypass.getARGB());
-    bypassButton.setTooltip ("Bypass sem cliques (mantém a latência)");
     bypassAtt = std::make_unique<BA> (proc.apvts, ids::bypass, bypassButton);
 
     advancedButton.getProperties().set ("accent", (juce::int64) pal::sc.getARGB());
-    advancedButton.setTooltip ("Low/High Cut, Attack/Release, Smooth, estéreo, SC Listen e qualidade");
     advancedButton.onClick = [this] { showAdvanced (! advanced.isVisible()); };
 
     for (auto* b : { &deltaButton, &bypassButton, &advancedButton })
         addAndMakeVisible (b);
+
+    langSwitch.accent = pal::red;
+    langSwitch.background = pal::display;
+    langSwitch.outline = pal::plateEdge.brighter (0.2f);
+    langSwitch.text = pal::text;
+    langSwitch.textDim = pal::textDim;
+    langSwitch.hoverFill = juce::Colour (0xff22272d);
+    langSwitch.fontHeight = 11.0f;
+    addAndMakeVisible (langSwitch);
+
+    piradex::i18n::reload();          // outro plugin Piradex pode ter mudado o idioma
+    lang.bind ([this]
+    {
+        space.setTooltip (tr ("SPACE — quanto o MIXSPACE reage: com que facilidade a colisão vira redução",
+                              "SPACE — how much MIXSPACE reacts: how easily a collision turns into reduction"));
+        range.setTooltip (tr ("RANGE — redução máxima em qualquer região (teto em dB)",
+                              "RANGE — maximum reduction in any region (ceiling in dB)"));
+        focus.setTooltip (tr ("FOCUS — 0 % reage a todo o espectro do sidechain, 100 % só às regiões dominantes",
+                              "FOCUS — 0 % reacts to the whole sidechain spectrum, 100 % only to the dominant regions"));
+        deltaButton.setTooltip (tr ("DELTA — ouvir apenas o que está a ser retirado do beat", "DELTA — hear only what is being removed from the beat"));
+        bypassButton.setTooltip (tr ("Bypass sem cliques (mantém a latência)", "Click-free bypass (keeps the latency)"));
+        advancedButton.setButtonText (tr ("Avançado", "Advanced"));
+        advancedButton.setTooltip (tr ("Cortes de graves/agudos, ataque/libertação, suavizar, estéreo, SC Listen e qualidade",
+                                       "Low/High Cut, Attack/Release, Smooth, stereo, SC Listen and quality"));
+    });
+    lang.onChange = [this] { repaint(); };
 
     login.onUnlocked = [this] { updateLock(); };
     addChildComponent (login);
@@ -97,6 +120,7 @@ void MainView::resized()
     deltaButton.setBounds (40, 506, 96, 26);
     bypassButton.setBounds (144, 506, 96, 26);
     advancedButton.setBounds (664, 506, 124, 26);
+    langSwitch.setBounds (474, 15, 70, 22);
 
     login.setBounds (getLocalBounds());
 }
@@ -173,8 +197,8 @@ void MainView::paint (juce::Graphics& g)
     label ("RANGE", { 210, 362 }, 12.5f, pal::textDim);
     label ("SPACE", { 410, 354 }, 14.0f, pal::text);
     label ("FOCUS", { 610, 362 }, 12.5f, pal::textDim);
-    label ("MAX REDUCTION", { 210, 490 }, 9.5f, pal::textFaint.brighter (0.15f));
-    label ("SELECTIVITY", { 610, 490 }, 9.5f, pal::textFaint.brighter (0.15f));
+    label (tr ("REDUÇÃO MÁX.", "MAX REDUCTION"), { 210, 490 }, 9.5f, pal::textFaint.brighter (0.15f));
+    label (tr ("SELETIVIDADE", "SELECTIVITY"), { 610, 490 }, 9.5f, pal::textFaint.brighter (0.15f));
 
     g.setFont (uiFont (9.0f, true, 0.6f));
     g.setColour (pal::textFaint.withAlpha (0.8f));
@@ -199,22 +223,30 @@ void MainView::showMenu()
     menu.addSectionHeader ("MIXSPACE by Piradex " JucePlugin_VersionString);
     if (lic::License::get().isUnlocked())
         menu.addItem (lic::License::get().statusText(), false, false, nullptr);
-    menu.addSubMenu ("Tamanho da interface", sizes);
+    menu.addSubMenu (tr ("Tamanho da interface", "Interface size"), sizes);
+    juce::PopupMenu langs;
+    langs.addItem (juce::String::fromUTF8 ("Português"), true, piradex::i18n::isPortuguese(), [] { piradex::i18n::set (piradex::i18n::Language::PT); });
+    langs.addItem ("English", true, ! piradex::i18n::isPortuguese(), [] { piradex::i18n::set (piradex::i18n::Language::EN); });
+    menu.addSubMenu (tr ("Idioma · Language", "Language · Idioma"), langs);
     menu.addSeparator();
-    menu.addItem (juce::String::fromUTF8 ("Terminar sessão neste computador"), lic::License::get().isUnlocked(), false, [this]
+    menu.addItem (tr ("Terminar sessão neste computador", "Sign out on this computer"), lic::License::get().isUnlocked(), false, [this]
     {
         lic::License::get().lock();
         updateLock();
     });
-    menu.addItem ("Sobre o MIXSPACE", []
+    menu.addItem (tr ("Sobre o MIXSPACE", "About MIXSPACE"), []
     {
         juce::NativeMessageBox::showAsync (juce::MessageBoxOptions()
             .withIconType (juce::MessageBoxIconType::InfoIcon)
             .withTitle ("MIXSPACE by Piradex")
-            .withMessage (juce::String::fromUTF8 ("Versão " JucePlugin_VersionString "\n\n"
-                                                  "Spectral sidechain: retira do beat só aquilo que está no caminho da voz.\n\n"
-                                                  "www.beatfreakstudio.com\n"
-                                                  "Suporte: juninhopiradex@hotmail.com"))
+            .withMessage (tr ("Versão " JucePlugin_VersionString "\n\n"
+                              "Spectral sidechain: retira do beat só aquilo que está no caminho da voz.\n\n"
+                              "www.beatfreakstudio.com\n"
+                              "Suporte: juninhopiradex@hotmail.com",
+                              "Version " JucePlugin_VersionString "\n\n"
+                              "Spectral sidechain: removes from the beat only what is in the vocal's way.\n\n"
+                              "www.beatfreakstudio.com\n"
+                              "Support: juninhopiradex@hotmail.com"))
             .withButton ("OK"), nullptr);
     });
     menu.showMenuAsync (juce::PopupMenu::Options().withTargetComponent (this).withTargetScreenArea (localAreaToGlobal (logoArea)));

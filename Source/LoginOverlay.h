@@ -22,9 +22,11 @@ private:
     bool checking = false;
 
     juce::TextEditor password;
-    juce::ToggleButton remember { juce::String::fromUTF8 ("Lembrar neste computador") };
-    juce::TextButton enter { "Entrar" };
+    juce::ToggleButton remember;
+    juce::TextButton enter;
     juce::Label message;
+    piradex::i18n::LanguageSwitch language;
+    piradex::i18n::Binder lang;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (LoginOverlay)
 };

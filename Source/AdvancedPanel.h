@@ -22,6 +22,12 @@ public:
         attachment.sendInitialUpdate();
     }
 
+    void setLabels (const juce::StringArray& labels)
+    {
+        for (int i = 0; i < buttons.size() && i < labels.size(); ++i)
+            buttons[i]->setButtonText (labels[i]);
+    }
+
     void resized() override
     {
         const int n = buttons.size(), gap = 4;
@@ -67,6 +73,7 @@ private:
     juce::TextButton scListen { "SC Listen" }, closeButton { juce::String::fromUTF8 ("\xc3\x97") };
     std::unique_ptr<BA> scListenAtt;
     juce::Rectangle<int> latencyArea;
+    piradex::i18n::Binder lang;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (AdvancedPanel)
 };

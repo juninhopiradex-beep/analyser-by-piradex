@@ -2,6 +2,8 @@
 // arco de valor âmbar, sidechain em ciano, main em branco quente.
 #pragma once
 #include <juce_gui_basics/juce_gui_basics.h>
+#include "i18n/PiradexLanguageUI.h"
+using piradex::i18n::tr;
 
 namespace pal
 {
@@ -166,7 +168,7 @@ public:
         if (led) r.removeFromLeft (r.getHeight() - 4);
         g.setFont (uiFont (segment ? 11.0f : 11.5f, true, 0.14f));
         g.setColour (on ? (segment ? accent.brighter (0.3f) : pal::text) : pal::textDim);
-        g.drawText (b.getButtonText().toUpperCase(), r, juce::Justification::centred, false);
+        g.drawText (piradex::i18n::upper (b.getButtonText()), r, juce::Justification::centred, false);
     }
 
     juce::Font getPopupMenuFont() override { return uiFont (14.0f); }

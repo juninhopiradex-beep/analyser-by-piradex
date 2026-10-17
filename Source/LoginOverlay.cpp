@@ -5,7 +5,6 @@ LoginOverlay::LoginOverlay()
     password.setPasswordCharacter ((juce::juce_wchar) 0x2022);
     password.setFont (uiFont (18.0f, true, 0.12f));
     password.setJustification (juce::Justification::centred);
-    password.setTextToShowWhenEmpty ("Senha", pal::textFaint.brighter (0.2f));
     password.setColour (juce::TextEditor::backgroundColourId, pal::display);
     password.setColour (juce::TextEditor::textColourId, pal::text);
     password.setColour (juce::TextEditor::highlightColourId, pal::red.withAlpha (0.3f));
@@ -30,6 +29,23 @@ LoginOverlay::LoginOverlay()
     message.setJustificationType (juce::Justification::centred);
     message.setFont (uiFont (13.0f));
     addAndMakeVisible (message);
+
+    language.accent = pal::red;
+    language.background = pal::display;
+    language.outline = pal::plateEdge.brighter (0.2f);
+    language.text = pal::text;
+    language.textDim = pal::textDim;
+    language.hoverFill = juce::Colour (0xff22272d);
+    addAndMakeVisible (language);
+    lang.bind ([this]
+    {
+        password.setTextToShowWhenEmpty (tr ("Senha", "Password"), pal::textFaint.brighter (0.2f));
+        remember.setButtonText (tr ("Lembrar neste computador", "Remember this computer"));
+        enter.setButtonText (tr ("Entrar", "Sign in"));
+        message.setText ({}, juce::dontSendNotification);
+        password.repaint();
+    });
+    lang.onChange = [this] { repaint(); };
 }
 
 juce::Rectangle<int> LoginOverlay::card() const
@@ -66,12 +82,12 @@ void LoginOverlay::paint (juce::Graphics& g)
     g.drawText ("by Piradex", juce::Rectangle<float> (c.getX(), top + 56.0f, c.getWidth(), 18.0f), juce::Justification::centred);
     g.setColour (pal::textFaint.brighter (0.35f));
     g.setFont (uiFont (13.0f));
-    g.drawText (juce::String::fromUTF8 ("Introduza a sua senha para começar"),
+    g.drawText (tr ("Introduza a sua senha para começar", "Enter your password to get started"),
                 juce::Rectangle<float> (c.getX(), top + 84.0f, c.getWidth(), 18.0f), juce::Justification::centred);
 
     g.setColour (pal::textFaint.brighter (0.15f));
     g.setFont (uiFont (11.0f));
-    g.drawText (juce::String::fromUTF8 ("Sem sessão iniciada o MIXSPACE deixa passar o áudio sem processar."),
+    g.drawText (tr ("Sem sessão iniciada o MIXSPACE deixa passar o áudio sem processar.", "While signed out, MIXSPACE passes the audio through unprocessed."),
                 juce::Rectangle<float> (c.getX(), c.getBottom() + 14.0f, c.getWidth(), 16.0f), juce::Justification::centred);
     g.drawText ("www.beatfreakstudio.com  " + juce::String::fromUTF8 ("·") + "  juninhopiradex@hotmail.com",
                 juce::Rectangle<float> (c.getX(), c.getBottom() + 32.0f, c.getWidth(), 16.0f), juce::Justification::centred);
@@ -88,6 +104,7 @@ void LoginOverlay::resized()
     enter.setBounds (c.removeFromTop (34).withSizeKeepingCentre (150, 34));
     c.removeFromTop (8);
     message.setBounds (c.removeFromTop (34));
+    language.setBounds (card().removeFromBottom (40).removeFromRight (98).reduced (14, 8));
 }
 
 void LoginOverlay::visibilityChanged()
@@ -101,7 +118,7 @@ void LoginOverlay::submit()
     if (password.isEmpty() || checking) return;
     checking = true;
     message.setColour (juce::Label::textColourId, pal::textDim);
-    message.setText (juce::String::fromUTF8 ("A verificar…"), juce::dontSendNotification);
+    message.setText (tr ("A verificar…", "Checking…"), juce::dontSendNotification);
 
     // deixa a mensagem aparecer antes da verificação (PBKDF2, lenta de propósito)
     juce::Component::SafePointer<LoginOverlay> safe (this);
@@ -128,7 +145,7 @@ void LoginOverlay::check()
     }
     password.selectAll();
     message.setColour (juce::Label::textColourId, pal::bypass);
-    message.setText (r == lic::License::Result::Expired ? juce::String::fromUTF8 ("Esta senha beta já expirou.")
-                                                        : juce::String::fromUTF8 ("Senha incorreta."),
+    message.setText (r == lic::License::Result::Expired ? tr ("Esta senha beta já expirou.", "This beta password has expired.")
+                                                        : tr ("Senha incorreta.", "Incorrect password."),
                      juce::dontSendNotification);
 }

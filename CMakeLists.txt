@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.22)
-project(MixspaceByPiradex VERSION 0.2.0)
+project(MixspaceByPiradex VERSION 2.0.0)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -22,9 +22,11 @@ else()
 endif()
 
 if(APPLE)
-    set(MXS_FORMATS VST3 AU)
+    set(MXS_FORMATS VST3 AU AAX)
+elseif(WIN32)
+    set(MXS_FORMATS VST3 AAX)
 else()
-    set(MXS_FORMATS VST3)
+    set(MXS_FORMATS VST3)            # Linux: só desenvolvimento/testes
 endif()
 
 juce_add_plugin(Mixspace
@@ -44,7 +46,8 @@ juce_add_plugin(Mixspace
     EDITOR_WANTS_KEYBOARD_FOCUS FALSE
     COPY_PLUGIN_AFTER_BUILD FALSE
     VST3_CATEGORIES Fx Dynamics EQ
-    AU_MAIN_TYPE kAudioUnitType_Effect)
+    AU_MAIN_TYPE kAudioUnitType_Effect
+    AAX_CATEGORY Dynamics)   # AAX: SDK incluído na JUCE 8; o Pro Tools normal exige assinatura PACE
 
 target_sources(Mixspace PRIVATE
     Source/PluginProcessor.cpp
@@ -52,7 +55,8 @@ target_sources(Mixspace PRIVATE
     Source/SpectrumDisplay.cpp
     Source/AdvancedPanel.cpp
     Source/License.cpp
-    Source/LoginOverlay.cpp)
+    Source/LoginOverlay.cpp
+    Source/i18n/PiradexLanguage.cpp)
 
 target_include_directories(Mixspace PRIVATE Source)
 
@@ -61,6 +65,11 @@ target_compile_definitions(Mixspace PUBLIC
     JUCE_USE_CURL=0
     JUCE_VST3_CAN_REPLACE_VST2=0
     JUCE_DISPLAY_SPLASH_SCREEN=0)
+
+# MSVC: ler o código-fonte como UTF-8 (textos em português)
+if(MSVC)
+    target_compile_options(Mixspace PRIVATE /utf-8)
+endif()
 
 target_link_libraries(Mixspace
     PRIVATE

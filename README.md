@@ -1,6 +1,6 @@
 # MIXSPACE by Piradex
 
-**Spectral sidechain para VST3 / AU (macOS e Windows).**
+**Spectral sidechain para VST3 / AU / AAX (macOS e Windows) — versão 2.0.0, interface em Português e Inglês.**
 Insira no beat, envie a voz para o sidechain, rode **SPACE**. O MIXSPACE retira do instrumental só as frequências que estão realmente a colidir com a voz — o resto do beat fica cheio.
 
 > "Não baixar o instrumental. Retirar apenas aquilo que está no caminho."
@@ -64,7 +64,8 @@ Igual aos outros plugins Piradex: o **GitHub Actions** compila tudo a cada push 
 1. testes numéricos do núcleo DSP (Linux);
 2. macOS universal (Intel + Apple Silicon, macOS 10.13+): VST3 + AU, validação com `auval` (nativo e Rosetta) e `pluginval`, instalador `.pkg` dentro de um `.dmg`;
 3. Windows 10/11 x64: VST3 com runtime embutido, `pluginval`, instalador Inno Setup `.exe` + `.zip`;
-4. publica um pré-lançamento `v0.2.0-beta` e guarda os binários no ramo `builds`.
+4. AAX (macOS + Windows), assinado pela PACE só quando houver credenciais nos *Secrets* (`PACE_ACCOUNT`, `PACE_PASSWORD`, `PACE_WCGUID`, `PACE_EDEN_URL`, `PACE_EDEN_WIN_URL`, `PACE_KEYFILE_B64`, `PACE_KEYPASSWORD`); sem elas sai `...-AAX-nao-assinado.zip` (só abre no *Pro Tools Developer*);
+5. publica a versão `v2.0.0` (no repositório do ANALYSER: `mixspace-v2.0.0`) e guarda os binários no ramo `builds`.
 
 Localmente:
 
@@ -90,11 +91,17 @@ Source/PluginEditor.*       página principal (3 knobs), escala 80–200 %
 Source/SpectrumDisplay.*    display de colisão espectral + masking meter
 Source/AdvancedPanel.*      painel Advanced
 Source/MixspaceLookAndFeel.h  identidade visual
+Source/i18n/                idioma PT/EN partilhado por todos os plugins Piradex
 tests/                      testes do núcleo e de integração (com capturas da interface)
 installer/                  .pkg/.dmg (macOS) e Inno Setup (Windows)
 ```
 
-## Estado (v0.2.0 — MVP + login)
+## Novidades na 2.0.0
+
+- **Português e Inglês:** seletor **PT | EN** no topo, no menu do logótipo (*Idioma · Language*) e no ecrã de senha. Troca imediata, sem reabrir. Na primeira abertura segue o idioma do sistema; a escolha é comum a todos os plugins Piradex. Os nomes de automação no DAW não mudam.
+- **AAX** (Pro Tools) para macOS e Windows.
+
+## Estado (v2.0.0)
 
 Feito: Main + Sidechain, spectrum display, SPACE, RANGE, FOCUS, Low/High Cut, Attack/Release, Smooth, Stereo/Mid/Side/L/R, Delta, SC Listen, Freeze, Masking meter, Bypass click-free, Live/Mix/Master, interface redimensionável, acesso por senha (master + chaves beta).
 

@@ -37,7 +37,12 @@ SpectrumDisplay::SpectrumDisplay (MixspaceProcessor& p)
 
     freezeButton.setClickingTogglesState (true);
     freezeButton.getProperties().set ("accent", (juce::int64) pal::sc.getARGB());
-    freezeButton.setTooltip ("Congela o espectro (o processamento continua)");
+    lang.bind ([this]
+    {
+        freezeButton.setButtonText (tr ("Fixar", "Freeze"));
+        freezeButton.setTooltip (tr ("Fixa o desenho do espectro (o processamento continua)", "Freezes the spectrum (processing continues)"));
+    });
+    lang.onChange = [this] { repaint(); };
     freezeButton.onClick = [this] { frozen = freezeButton.getToggleState(); };
     addAndMakeVisible (freezeButton);
 
@@ -196,8 +201,8 @@ void SpectrumDisplay::paintZone (juce::Graphics& g, juce::Rectangle<float> plot)
                         which == 1 ? juce::Justification::centredLeft : juce::Justification::centredRight);
         }
     };
-    edge (xl, 1, "LOW CUT", lo);
-    edge (xh, 2, "HIGH CUT", hi);
+    edge (xl, 1, tr ("GRAVES", "LOW CUT"), lo);
+    edge (xh, 2, tr ("AGUDOS", "HIGH CUT"), hi);
 }
 
 void SpectrumDisplay::paintCurves (juce::Graphics& g, juce::Rectangle<float> plot)
@@ -288,9 +293,9 @@ void SpectrumDisplay::paintOverlay (juce::Graphics& g, juce::Rectangle<float> pl
         g.drawText (t, juce::Rectangle<float> (x + 20.0f, y, w, 14.0f), juce::Justification::centredLeft);
         x += 20.0f + w + 18.0f;
     };
-    legend (pal::main, "MAIN");
+    legend (pal::main, tr ("PRINCIPAL", "MAIN"));
     legend (pal::sc, "SIDECHAIN");
-    legend (pal::red, "REDUCTION");
+    legend (pal::red, tr ("REDUÇÃO", "REDUCTION"));
 
     // masking meter + redução média
     const float right = (float) freezeButton.getX() - 16.0f;
@@ -298,7 +303,7 @@ void SpectrumDisplay::paintOverlay (juce::Graphics& g, juce::Rectangle<float> pl
     const float segW = 5.0f, gap = 2.0f, meterW = segs * (segW + gap);
     const float mx = right - 34.0f - meterW;
     g.setColour (pal::textDim);
-    g.drawText ("MASKING", juce::Rectangle<float> (mx - 70.0f, y, 64.0f, 14.0f), juce::Justification::centredRight);
+    g.drawText (tr ("COLISÃO", "MASKING"), juce::Rectangle<float> (mx - 70.0f, y, 64.0f, 14.0f), juce::Justification::centredRight);
     const int lit = (int) std::round (juce::jlimit (0.0f, 1.0f, masking) * segs);
     for (int i = 0; i < segs; ++i)
     {
@@ -312,7 +317,7 @@ void SpectrumDisplay::paintOverlay (juce::Graphics& g, juce::Rectangle<float> pl
 
     const float avgX = mx - 70.0f - 120.0f;
     g.setColour (avgRed > 0.05f ? pal::red : pal::textFaint);
-    g.drawText ("AVG  " + juce::String (avgRed > 0.05f ? "-" : "") + juce::String (avgRed, 1) + " dB",
+    g.drawText (tr ("MÉDIA  ", "AVG  ") + juce::String (avgRed > 0.05f ? "-" : "") + juce::String (avgRed, 1) + " dB",
                 juce::Rectangle<float> (avgX, y, 104.0f, 14.0f), juce::Justification::centredRight);
 
     // avisos de sidechain
@@ -325,24 +330,24 @@ void SpectrumDisplay::paintOverlay (juce::Graphics& g, juce::Rectangle<float> pl
         g.drawRoundedRectangle (box, 10.0f, 1.0f);
         g.setColour (pal::red);
         g.setFont (uiFont (17.0f, true, 0.22f));
-        g.drawText ("SIDECHAIN NOT CONNECTED", box.withTrimmedBottom (32.0f).withTrimmedTop (8.0f), juce::Justification::centred);
+        g.drawText (tr ("SIDECHAIN NÃO LIGADO", "SIDECHAIN NOT CONNECTED"), box.withTrimmedBottom (32.0f).withTrimmedTop (8.0f), juce::Justification::centred);
         g.setColour (pal::textDim);
         g.setFont (uiFont (12.0f));
-        g.drawText (juce::String::fromUTF8 ("Envie a voz (ou o sinal prioritário) para a entrada sidechain do MIXSPACE."),
+        g.drawText (tr ("Envie a voz (ou o sinal prioritário) para a entrada sidechain do MIXSPACE.", "Send the vocal (or the priority signal) to the MIXSPACE sidechain input."),
                     box.withTrimmedTop (42.0f).withTrimmedBottom (10.0f), juce::Justification::centred);
     }
     else if (proc.isSidechainSilent() && ! proc.isMainSilent())
     {
         g.setColour (pal::textDim);
         g.setFont (uiFont (11.0f, true, 0.18f));
-        g.drawText ("SEM SINAL NO SIDECHAIN", juce::Rectangle<float> (300.0f, 16.0f).withCentre ({ plot.getCentreX(), plot.getY() + 14.0f }), juce::Justification::centred);
+        g.drawText (tr ("SEM SINAL NO SIDECHAIN", "NO SIDECHAIN SIGNAL"), juce::Rectangle<float> (300.0f, 16.0f).withCentre ({ plot.getCentreX(), plot.getY() + 14.0f }), juce::Justification::centred);
     }
 
     if (frozen)
     {
         g.setColour (pal::sc.withAlpha (0.8f));
         g.setFont (uiFont (10.0f, true, 0.2f));
-        g.drawText ("FROZEN", juce::Rectangle<float> (plot.getRight() - 60.0f, plot.getBottom() - 18.0f, 56.0f, 14.0f), juce::Justification::centredRight);
+        g.drawText (tr ("FIXADO", "FROZEN"), juce::Rectangle<float> (plot.getRight() - 60.0f, plot.getBottom() - 18.0f, 56.0f, 14.0f), juce::Justification::centredRight);
     }
 }
 
