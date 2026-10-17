@@ -2,6 +2,7 @@
 #pragma once
 #include "Theme.h"
 #include "../Params.h"
+#include "Names.h"
 
 // Botão rotativo com nome em cima e valor editável em baixo
 class Knob : public juce::Component
@@ -25,6 +26,13 @@ public:
         addAndMakeVisible (label);
     }
     void setColour (juce::Colour c) { slider.getProperties().set ("colour", (juce::int64) c.getARGB()); slider.repaint(); }
+    void setText (const juce::String& name)
+    {
+        label.setText (name, juce::dontSendNotification);
+        slider.setTitle (name);
+        if (tipFromName) slider.setTooltip (name);
+    }
+    bool tipFromName = true;      // dica = nome do controlo (no idioma da interface)
     void attach (juce::RangedAudioParameter* p)
     {
         att.reset();
@@ -32,7 +40,7 @@ public:
         {
             att = std::make_unique<juce::SliderParameterAttachment> (*p, slider, nullptr);
             slider.setDoubleClickReturnValue (true, p->convertFrom0to1 (p->getDefaultValue()));
-            slider.setTooltip (p->getName (64));
+            if (tipFromName) slider.setTooltip (label.getText());
         }
     }
     void resized() override
@@ -88,6 +96,7 @@ public:
     int selected() const { return current; }
     void setAccent (juce::Colour c) { for (auto* b : buttons) b->getProperties().set ("accent", (juce::int64) c.getARGB()); repaint(); }
     void setTooltips (const juce::StringArray& t) { for (int k = 0; k < buttons.size() && k < t.size(); ++k) buttons[k]->setTooltip (t[k]); }
+    void setLabels (const juce::StringArray& t) { for (int k = 0; k < buttons.size() && k < t.size(); ++k) buttons[k]->setButtonText (t[k]); }
 
     void resized() override
     {
@@ -181,6 +190,7 @@ private:
 class ValueBar : public juce::Slider
 {
 public:
+    void setLabel (const juce::String& n) { label = n; setTitle (n); repaint(); }
     ValueBar (const juce::String& n, std::function<juce::String (double)> f) : label (n), fmt (std::move (f))
     {
         setSliderStyle (juce::Slider::LinearBar);

@@ -40,6 +40,11 @@ inline BandParams below (BandParams b) { b.direction = DynDirection::Below; retu
 inline BandParams at (BandParams b, Placement p) { b.placement = p; return b; }
 
 const std::vector<FactoryPreset>& factory();
+
+// Texto mostrado no idioma da interface (o nome guardado não muda)
+juce::String displayName (const juce::String& storedName);
+juce::String displayDescription (const FactoryPreset&);
+juce::String displayFolder (const juce::String& folder);
 } // namespace presets
 
 class PresetManager

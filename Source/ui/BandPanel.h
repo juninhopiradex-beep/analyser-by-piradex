@@ -22,6 +22,7 @@ private:
     juce::TextButton add { "+" }, clear { "Limpar bandas" };
     std::vector<int> visible;
     int selected = -1;
+    piradex::i18n::Binder lang;
 };
 
 class BandInspector : public juce::Component, private juce::Timer
@@ -54,4 +55,5 @@ private:
     std::unique_ptr<juce::ButtonParameterAttachment> dynAtt;
     juce::Rectangle<int> meterArea, headerArea, dynArea;
     float liveGr = 0, liveLevel = -100;
+    piradex::i18n::Binder lang;
 };

@@ -4,6 +4,8 @@
 // =============================================================================
 #pragma once
 #include <juce_gui_extra/juce_gui_extra.h>
+#include "../i18n/PiradexLanguageUI.h"
+using piradex::i18n::tr;
 #include "BinaryData.h"
 
 namespace pal

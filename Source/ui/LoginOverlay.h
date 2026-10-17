@@ -15,10 +15,8 @@ public:
         password.setPasswordCharacter ((juce::juce_wchar) 0x2022);
         password.setFont (fonts::ui (18.0f, 1));
         password.setJustification (juce::Justification::centred);
-        password.setTextToShowWhenEmpty ("Senha", pal::textFaint.brighter (0.2f));
         password.setIndents (12, 0);
         password.onReturnKey = [this] { submit(); };
-        password.setTitle ("Senha");
         addAndMakeVisible (password);
 
         remember.setToggleState (true, juce::dontSendNotification);
@@ -31,6 +29,24 @@ public:
         message.setJustificationType (juce::Justification::centred);
         message.setFont (fonts::ui (13.0f));
         addAndMakeVisible (message);
+
+        language.accent = pal::accent;
+        language.background = pal::bg0;
+        language.outline = pal::line;
+        language.text = pal::text;
+        language.textDim = pal::textDim;
+        language.hoverFill = pal::bg3;
+        addAndMakeVisible (language);
+        lang.bind ([this]
+        {
+            password.setTextToShowWhenEmpty (tr ("Senha", "Password"), pal::textFaint.brighter (0.2f));
+            password.setTitle (tr ("Senha", "Password"));
+            remember.setButtonText (tr ("Lembrar neste computador", "Remember this computer"));
+            enter.setButtonText (tr ("Entrar", "Sign in"));
+            message.setText ({}, juce::dontSendNotification);
+            password.repaint();
+        });
+        lang.onChange = [this] { repaint(); };
     }
 
     std::function<void()> onUnlocked;
@@ -70,11 +86,11 @@ public:
         g.drawText ("by Piradex", juce::Rectangle<float> (c.getX(), top + 68, c.getWidth(), 18), juce::Justification::centred);
         g.setColour (pal::textFaint.brighter (0.3f));
         g.setFont (fonts::ui (13.0f));
-        g.drawText (juce::String::fromUTF8 ("Introduza a sua senha para começar"), juce::Rectangle<float> (c.getX(), top + 96, c.getWidth(), 18), juce::Justification::centred);
+        g.drawText (tr ("Introduza a sua senha para começar", "Enter your password to get started"), juce::Rectangle<float> (c.getX(), top + 96, c.getWidth(), 18), juce::Justification::centred);
 
         g.setColour (pal::textFaint.brighter (0.1f));
         g.setFont (fonts::ui (11.5f));
-        g.drawText (juce::String::fromUTF8 ("Sem sessão iniciada o EQMotion deixa passar o áudio sem processar."),
+        g.drawText (tr ("Sem sessão iniciada o EQMotion deixa passar o áudio sem processar.", "While signed out, EQMotion passes the audio through unprocessed."),
                     juce::Rectangle<float> (c.getX() - 60, c.getBottom() + 16, c.getWidth() + 120, 16), juce::Justification::centred);
         g.drawText (juce::String::fromUTF8 ("www.beatfreakstudio.com  ·  juninhopiradex@hotmail.com"),
                     juce::Rectangle<float> (c.getX() - 60, c.getBottom() + 34, c.getWidth() + 120, 16), juce::Justification::centred);
@@ -91,6 +107,7 @@ public:
         enter.setBounds (c.removeFromTop (36).withSizeKeepingCentre (160, 36));
         c.removeFromTop (8);
         message.setBounds (c.removeFromTop (32));
+        language.setBounds (card().removeFromBottom (42).removeFromRight (100).reduced (14, 9));
     }
 
     void visibilityChanged() override
@@ -108,7 +125,7 @@ private:
         checking = true;
         enter.setEnabled (false);
         message.setColour (juce::Label::textColourId, pal::textDim);
-        message.setText (juce::String::fromUTF8 ("A verificar…"), juce::dontSendNotification);
+        message.setText (tr ("A verificar…", "Checking…"), juce::dontSendNotification);
         const auto pw = password.getText();
         const bool rem = remember.getToggleState();
         juce::Component::SafePointer<LoginOverlay> safe (this);
@@ -137,13 +154,15 @@ private:
         }
         password.selectAll();
         message.setColour (juce::Label::textColourId, pal::accent2);
-        message.setText (r == lic::License::Result::Expired ? juce::String::fromUTF8 ("Esta senha beta já expirou.") : juce::String::fromUTF8 ("Senha incorreta."),
+        message.setText (r == lic::License::Result::Expired ? tr ("Esta senha beta já expirou.", "This beta password has expired.") : tr ("Senha incorreta.", "Incorrect password."),
                          juce::dontSendNotification);
     }
 
     juce::TextEditor password;
-    juce::ToggleButton remember { juce::String::fromUTF8 ("Lembrar neste computador") };
-    juce::TextButton enter { "Entrar" };
+    juce::ToggleButton remember;
+    juce::TextButton enter;
     juce::Label message;
     bool checking = false;
+    piradex::i18n::LanguageSwitch language;
+    piradex::i18n::Binder lang;
 };

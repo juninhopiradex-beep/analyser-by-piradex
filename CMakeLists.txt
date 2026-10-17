@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.22)
-project(EQMotionByPiradex VERSION 1.0.0)
+project(EQMotionByPiradex VERSION 2.0.0)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -22,9 +22,9 @@ else()
 endif()
 
 if(APPLE)
-    set(EQM_FORMATS VST3 AU)
+    set(EQM_FORMATS VST3 AU AAX)
 elseif(WIN32)
-    set(EQM_FORMATS VST3)
+    set(EQM_FORMATS VST3 AAX)
 else()
     set(EQM_FORMATS VST3 Standalone)
 endif()
@@ -53,7 +53,8 @@ juce_add_plugin(EQMotion
     EDITOR_WANTS_KEYBOARD_FOCUS TRUE
     COPY_PLUGIN_AFTER_BUILD FALSE
     VST3_CATEGORIES Fx EQ
-    AU_MAIN_TYPE kAudioUnitType_Effect)
+    AU_MAIN_TYPE kAudioUnitType_Effect
+    AAX_CATEGORY EQ)   # AAX: SDK incluído na JUCE 8; o Pro Tools normal exige assinatura PACE
 
 target_sources(EQMotion PRIVATE
     Source/PluginProcessor.cpp
@@ -62,7 +63,8 @@ target_sources(EQMotion PRIVATE
     Source/Presets.cpp
     Source/License.cpp
     Source/ui/EQGraph.cpp
-    Source/ui/BandPanel.cpp)
+    Source/ui/BandPanel.cpp
+    Source/i18n/PiradexLanguage.cpp)
 
 target_include_directories(EQMotion PRIVATE Source)
 

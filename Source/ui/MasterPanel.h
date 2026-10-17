@@ -15,25 +15,38 @@ public:
         output.attach (proc.apvts.getParameter (ids::output));
         scale.attach (proc.apvts.getParameter (ids::gainScale));
         addAndMakeVisible (output); addAndMakeVisible (scale);
-        scale.slider.setTooltip (juce::String::fromUTF8 ("Escala todos os ganhos das bandas (0–200 %)"));
-
-        autoGain.setTooltip (juce::String::fromUTF8 ("Compara bypass, A/B e presets com a mesma loudness — ganha a melhor definição, não a mais alta"));
+        scale.tipFromName = false;
         autoAtt = std::make_unique<juce::ButtonParameterAttachment> (*proc.apvts.getParameter (ids::autoGain), autoGain);
         addAndMakeVisible (autoGain);
 
         character.attach (proc.apvts.getParameter (ids::character));
-        character.setTooltips ({ juce::String::fromUTF8 ("Transparente: sem harmónicos adicionados"),
-                                 juce::String::fromUTF8 ("Cor ligeira: harmónicos de baixo nível"),
-                                 juce::String::fromUTF8 ("Mais calor: harmónicos e ligeira inclinação tonal") });
         addAndMakeVisible (character);
 
         deharshAtt = std::make_unique<juce::ButtonParameterAttachment> (*proc.apvts.getParameter (ids::deharsh), deharsh);
-        deharsh.setTooltip (juce::String::fromUTF8 ("Doma a dureza 2–8 kHz só quando ela sobe acima do equilíbrio do próprio sinal"));
         addAndMakeVisible (deharsh);
         dhAmount.attach (proc.apvts.getParameter (ids::deharshAmt));
         dhAtk.attach (proc.apvts.getParameter (ids::deharshAtk));
         dhRel.attach (proc.apvts.getParameter (ids::deharshRel));
         for (auto* k : { &dhAmount, &dhAtk, &dhRel }) addAndMakeVisible (k);
+
+        lang.bind ([this]
+        {
+            output.setText (tr ("SAÍDA", "OUTPUT"));
+            scale.setText (tr ("ESCALA", "SCALE"));
+            scale.slider.setTooltip (tr ("Escala todos os ganhos das bandas (0–200 %)", "Scales all band gains (0–200 %)"));
+            autoGain.setTooltip (tr ("Compara bypass, A/B e presets com a mesma loudness — ganha a melhor definição, não a mais alta",
+                                     "Compares bypass, A/B and presets at the same loudness — the best setting wins, not the loudest"));
+            character.setLabels ({ tr ("Limpo", "Clean"), tr ("Subtil", "Subtle"), tr ("Quente", "Warm") });
+            character.setTooltips ({ tr ("Transparente: sem harmónicos adicionados", "Transparent: no added harmonics"),
+                                     tr ("Cor ligeira: harmónicos de baixo nível", "Light colour: low-level harmonics"),
+                                     tr ("Mais calor: harmónicos e ligeira inclinação tonal", "More warmth: harmonics and a slight tonal tilt") });
+            deharsh.setTooltip (tr ("Doma a dureza 2–8 kHz só quando ela sobe acima do equilíbrio do próprio sinal",
+                                    "Tames 2–8 kHz harshness only when it rises above the signal's own balance"));
+            dhAmount.setText (tr ("QUANT.", "AMOUNT"));
+            dhAtk.setText (tr ("ATQ", "ATK"));
+            dhRel.setText (tr ("LIB", "REL"));
+        });
+        lang.onChange = [this] { repaint(); };
         startTimerHz (30);
     }
 
@@ -73,24 +86,24 @@ public:
         g.drawVerticalLine (0, 0, (float) getHeight());
         g.setFont (fonts::ui (10.5f, 1, 0.05f));
         g.setColour (pal::textFaint.brighter (0.25f));
-        g.drawText ("CHARACTER", charTitle, juce::Justification::centredLeft);
+        g.drawText (tr ("CARÁCTER", "CHARACTER"), charTitle, juce::Justification::centredLeft);
         const int ch = juce::jlimit (0, 2, (int) proc.apvts.getRawParameterValue (ids::character)->load());
         g.setFont (fonts::ui (10.5f));
         g.setColour (ch == 0 ? pal::textDim : pal::accent);
-        g.drawText (ch == 0 ? juce::String::fromUTF8 ("Sem harmónicos adicionados") : ch == 1 ? juce::String::fromUTF8 ("Harmónicos subtis") : juce::String::fromUTF8 ("Harmónicos + calor"),
+        g.drawText (ch == 0 ? tr ("Sem harmónicos adicionados", "No added harmonics") : ch == 1 ? tr ("Harmónicos subtis", "Subtle harmonics") : tr ("Harmónicos + calor", "Harmonics + warmth"),
                     charStatus, juce::Justification::centredLeft);
         g.setColour (pal::textDim);
         g.setFont (fonts::mono (10.0f));
         if (proc.apvts.getRawParameterValue (ids::autoGain)->load() > 0.5f)
-            g.drawText ("comp. " + juce::String (proc.autoGainDb(), 1) + " dB", agArea, juce::Justification::centredLeft);
+            g.drawText (tr ("comp. ", "comp. ") + juce::String (proc.autoGainDb(), 1) + " dB", agArea, juce::Justification::centredLeft);
         if (proc.apvts.getRawParameterValue (ids::deharsh)->load() > 0.5f)
-            g.drawText (juce::String::fromUTF8 ("redução ") + juce::String (proc.deharshDb(), 1) + " dB", dhStatus, juce::Justification::centredLeft);
+            g.drawText (tr ("redução ", "reduction ") + juce::String (proc.deharshDb(), 1) + " dB", dhStatus, juce::Justification::centredLeft);
 
         const int lat = proc.currentLatency();
         g.setColour (pal::textFaint);
         g.setFont (fonts::mono (10.0f));
         const double ms = lat * 1000.0 / juce::jmax (1.0, proc.currentSampleRate());
-        g.drawFittedText (juce::String::fromUTF8 ("Latência\n") + juce::String (lat) + " amostras · " + juce::String (ms, 1) + " ms",
+        g.drawFittedText (tr ("Latência\n", "Latency\n") + juce::String (lat) + tr (" amostras · ", " samples · ") + juce::String (ms, 1) + " ms",
                           latArea, juce::Justification::centredLeft, 2);
     }
 
@@ -112,4 +125,5 @@ private:
     Knob dhAmount { "AMOUNT" }, dhAtk { "ATK" }, dhRel { "REL" };
     juce::Rectangle<int> charTitle, charStatus, agArea, dhStatus, latArea;
     int ticks = 0;
+    piradex::i18n::Binder lang;
 };

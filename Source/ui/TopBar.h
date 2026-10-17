@@ -10,45 +10,56 @@ public:
         auto& st = proc.state;
         presetName.getProperties().set ("radius", 6.0f);
         presetName.onClick = [this] { if (onPresetBrowser) onPresetBrowser (presetName); };
-        presetName.setTooltip ("Navegador de presets");
         prev.onClick = [this] { step (-1); };
         next.onClick = [this] { step (1); };
-        prev.setTooltip ("Preset anterior"); next.setTooltip ("Preset seguinte");
         undo.onClick = [&st] { st.undo(); };
         redo.onClick = [&st] { st.redo(); };
-        undo.setTooltip ("Desfazer (Cmd/Ctrl+Z)"); redo.setTooltip ("Refazer (Cmd/Ctrl+Shift+Z)");
         slotA.onClick = [&st] { st.switchSlot (0); };
         slotB.onClick = [&st] { st.switchSlot (1); };
-        slotA.setTooltip ("Definição A"); slotB.setTooltip (juce::String::fromUTF8 ("Definição B"));
         copyAB.onClick = [&st] { st.copyActiveToOther(); };
-        copyAB.setTooltip (juce::String::fromUTF8 ("Copiar a definição atual para a outra (A → B ou B → A)"));
         for (auto* b : { &slotA, &slotB }) { b->getProperties().set ("radius", 5.0f); }
 
         procMode.addItemList (names::procModes(), 1);
         procModeAtt = std::make_unique<juce::ComboBoxParameterAttachment> (*proc.apvts.getParameter (ids::procMode), procMode);
-        procMode.setTooltip (juce::String::fromUTF8 ("Modo de canais: o analisador divide-se para condizer; novas bandas nascem em Mid (M/S) ou Esquerda (L/R)"));
 
         phase.attach (proc.apvts.getParameter (ids::phase));
-        phase.setTooltips ({ juce::String::fromUTF8 ("Zero Latency: fase mínima, 0 amostras — ideal para gravar e tocar ao vivo"),
-                             juce::String::fromUTF8 ("Natural Phase: resposta igual à analógica até 20 kHz (sem compressão perto de Nyquist), poucas amostras de latência"),
-                             juce::String::fromUTF8 ("Linear Phase: sem distorção de fase; tem pré-ringing e latência (qualidade nas definições)") });
 
         smart.setClickingTogglesState (false);
         smart.onClick = [this] { if (onSmartToggle) onSmartToggle(); };
-        smart.setTooltip (juce::String::fromUTF8 ("Smart Ops: análise que propõe bandas, pré-visualizadas antes de aplicar"));
         instances.onClick = [this] { if (onInstances) onInstances (instances); };
-        instances.setTooltip (juce::String::fromUTF8 ("Instâncias do EQMotion neste projeto"));
         settings.onClick = [this] { if (onSettings) onSettings (settings); };
-        settings.setTooltip (juce::String::fromUTF8 ("Definições"));
         power.onColour = pal::accent;
         power.onClick = [this]
         {
             auto* b = proc.apvts.getParameter (ids::bypass);
             b->beginChangeGesture(); b->setValueNotifyingHost (b->getValue() > 0.5f ? 0.0f : 1.0f); b->endChangeGesture();
         };
-        power.setTooltip (juce::String::fromUTF8 ("Ligar / bypass (comparação alinhada em latência)"));
         for (auto* c : std::initializer_list<juce::Component*> { &prev, &presetName, &next, &undo, &redo, &slotA, &slotB, &copyAB, &procMode, &phase, &smart, &instances, &settings, &power })
             addAndMakeVisible (c);
+        lang.bind ([this]
+        {
+            presetName.setTooltip (tr ("Navegador de presets", "Preset browser"));
+            prev.setTooltip (tr ("Preset anterior", "Previous preset")); next.setTooltip (tr ("Preset seguinte", "Next preset"));
+            undo.setTooltip (tr ("Desfazer (Cmd/Ctrl+Z)", "Undo (Cmd/Ctrl+Z)")); redo.setTooltip (tr ("Refazer (Cmd/Ctrl+Shift+Z)", "Redo (Cmd/Ctrl+Shift+Z)"));
+            slotA.setTooltip (tr ("Definição A", "Setting A")); slotB.setTooltip (tr ("Definição B", "Setting B"));
+            copyAB.setTooltip (tr ("Copiar a definição atual para a outra (A → B ou B → A)", "Copy the current setting to the other (A → B or B → A)"));
+            const int sel = procMode.getSelectedId();
+            procMode.changeItemText (1, tr ("Estéreo", "Stereo"));
+            procMode.changeItemText (2, tr ("Esq./Dir.", "Left/Right"));
+            procMode.changeItemText (3, "Mid/Side");
+            if (sel > 0) procMode.setSelectedId (sel, juce::dontSendNotification);
+            procMode.setTooltip (tr ("Modo de canais: o analisador divide-se para condizer; novas bandas nascem em Mid (M/S) ou Esquerda (L/R)",
+                                     "Channel mode: the analyzer splits to match; new bands start on Mid (M/S) or Left (L/R)"));
+            phase.setTooltips ({ tr ("Zero Latency: fase mínima, 0 amostras — ideal para gravar e tocar ao vivo",
+                                     "Zero Latency: minimum phase, 0 samples — ideal for tracking and live playing"),
+                                 tr ("Natural Phase: resposta igual à analógica até 20 kHz (sem compressão perto de Nyquist), poucas amostras de latência",
+                                     "Natural Phase: analog-matched response up to 20 kHz (no cramping near Nyquist), a few samples of latency"),
+                                 tr ("Linear Phase: sem distorção de fase; tem pré-ringing e latência (qualidade nas definições)",
+                                     "Linear Phase: no phase distortion; has pre-ringing and latency (quality in settings)") });
+            smart.setTooltip (tr ("Smart Ops: análise que propõe bandas, pré-visualizadas antes de aplicar", "Smart Ops: analysis that proposes bands, previewed before applying"));
+            settings.setTooltip (tr ("Definições (idioma, analisador, janela)", "Settings (language, analyzer, window)"));
+            power.setTooltip (tr ("Ligar / bypass (comparação alinhada em latência)", "On / bypass (latency-aligned comparison)"));
+        });
         startTimerHz (8);
         timerCallback();
     }
@@ -118,8 +129,8 @@ private:
     void timerCallback() override
     {
         auto& st = proc.state;
-        auto name = st.presetName();
-        if (st.isModifiedSincePreset() && name != "Default") name << " *";
+        auto name = presets::displayName (st.presetName());
+        if (st.isModifiedSincePreset() && st.presetName() != "Default") name << " *";
         if (presetName.getButtonText() != name) presetName.setButtonText (name);
         undo.setEnabled (st.canUndo()); redo.setEnabled (st.canRedo());
         slotA.setToggleState (st.activeSlot() == 0, juce::dontSendNotification);
@@ -128,7 +139,7 @@ private:
         int others = 0;
         for (auto& i : InstanceRegistry::get().all()) if (i != proc.shared) ++others;
         instances.setEnabled (true);
-        instances.setTooltip (juce::String::fromUTF8 ("Instâncias do EQMotion neste projeto (") + juce::String (others) + juce::String::fromUTF8 (" outras)"));
+        instances.setTooltip (tr ("Instâncias do EQMotion neste projeto (", "EQMotion instances in this project (") + juce::String (others) + tr (" outras)", " others)"));
     }
 
     void step (int dir)
@@ -158,6 +169,7 @@ private:
     Segmented phase { { "ZL", "NP", "LP" } };
     juce::TextButton smart { "Smart Ops" };
     IconButton instances { juce::String::fromUTF8 ("Instâncias"), icons::layers() }, settings { juce::String::fromUTF8 ("Definições"), icons::gear() }, power { "Bypass", icons::power() };
+    piradex::i18n::Binder lang;
 };
 
 // Barra fina por cima do gráfico: o que o analisador mostra, Congelar, Delta
@@ -174,12 +186,23 @@ public:
         deltaAtt = std::make_unique<juce::ButtonParameterAttachment> (*proc.apvts.getParameter (ids::delta), delta);
         delta.setClickingTogglesState (true);
         delta.getProperties().set ("accent", (juce::int64) pal::accent2.getARGB());
-        delta.setTooltip (juce::String::fromUTF8 ("Delta: ouvir só o que o EQ muda (saída menos o original alinhado em latência)"));
         addAndMakeVisible (delta);
         zoom.getProperties().set ("flat", true);
-        zoom.setTooltip ("Repor zoom (Cmd/Ctrl + roda para aproximar, Alt + arrastar para deslocar)");
         zoom.onClick = [this] { if (onResetZoom) onResetZoom(); };
         addAndMakeVisible (zoom);
+        // o nome interno (az_Entrada…) guarda o estado na sessão: só o texto visível muda com o idioma
+        lang.bind ([this]
+        {
+            pre.setButtonText (tr ("Entrada", "Input"));       pre.setTooltip (tr ("Espetro antes do EQ", "Spectrum before the EQ"));
+            post.setButtonText (tr ("Saída", "Output"));       post.setTooltip (tr ("Espetro depois do EQ", "Spectrum after the EQ"));
+            sc.setTooltip (tr ("Espetro da entrada sidechain", "Sidechain input spectrum"));
+            freeze.setButtonText (tr ("Congelar", "Freeze"));  freeze.setTooltip (tr ("Congela o espetro para comparar", "Freezes the spectrum to compare"));
+            delta.setTooltip (tr ("Delta: ouvir só o que o EQ muda (saída menos o original alinhado em latência)",
+                                  "Delta: hear only what the EQ changes (output minus the latency-aligned original)"));
+            zoom.setButtonText (tr ("Repor zoom", "Reset zoom"));
+            zoom.setTooltip (tr ("Repor zoom (Cmd/Ctrl + roda para aproximar, Alt + arrastar para deslocar)",
+                                 "Reset zoom (Cmd/Ctrl + wheel to zoom in, Alt + drag to pan)"));
+        });
     }
     std::function<void()> onResetZoom;
     void setZoomed (bool z) { zoom.setVisible (z); }
@@ -208,11 +231,12 @@ private:
         b.setClickingTogglesState (true);
         b.setToggleState (flag.load(), juce::dontSendNotification);
         b.setTooltip (tip);
-        b.onClick = [&b, &flag, this] { flag.store (b.getToggleState()); proc.uiState.setProperty (b.getName().isEmpty() ? b.getButtonText() : b.getName(), b.getToggleState(), nullptr); };
+        b.onClick = [&b, &flag, this] { flag.store (b.getToggleState()); proc.uiState.setProperty (b.getName(), b.getToggleState(), nullptr); };
         b.setName ("az_" + text);
         addAndMakeVisible (b);
     }
     EQMotionProcessor& proc;
     juce::TextButton pre, post, sc, freeze, delta { "Delta" }, zoom { "Repor zoom" };
     std::unique_ptr<juce::ButtonParameterAttachment> deltaAtt;
+    piradex::i18n::Binder lang;
 };

@@ -1,16 +1,19 @@
 #include "EQGraph.h"
+#include "Names.h"
 
 using namespace eqm;
 
 static juce::String fmtHz (double f)
 {
-    if (f >= 1000.0) return juce::String (f / 1000.0, f >= 10000.0 ? 1 : 2).replace (".", ",") + " kHz";
-    return juce::String (f, f < 100.0 ? 1 : 0).replace (".", ",") + " Hz";
+    if (f >= 1000.0) return juce::String (f / 1000.0, f >= 10000.0 ? 1 : 2).replace (".", piradex::i18n::isPortuguese() ? "," : ".") + " kHz";
+    return juce::String (f, f < 100.0 ? 1 : 0).replace (".", piradex::i18n::isPortuguese() ? "," : ".") + " Hz";
 }
-static juce::String fmtDb (double d) { return (d > 0.05 ? "+" : "") + juce::String (d, 1).replace (".", ",") + " dB"; }
+static juce::String fmtDb (double d) { return (d > 0.05 ? "+" : "") + juce::String (d, 1).replace (".", piradex::i18n::isPortuguese() ? "," : ".") + " dB"; }
 static juce::String noteName (double f)
 {
-    static const char* n[] = { "Dó", "Dó#", "Ré", "Ré#", "Mi", "Fá", "Fá#", "Sol", "Sol#", "Lá", "Lá#", "Si" };
+    static const char* pt[] = { "Dó", "Dó#", "Ré", "Ré#", "Mi", "Fá", "Fá#", "Sol", "Sol#", "Lá", "Lá#", "Si" };
+    static const char* en[] = { "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B" };
+    const auto* n = piradex::i18n::isPortuguese() ? pt : en;
     const double midi = 69.0 + 12.0 * std::log2 (f / 440.0);
     const int m = (int) std::round (midi);
     const int cents = (int) std::round ((midi - m) * 100.0);
@@ -21,8 +24,13 @@ static juce::String noteName (double f)
 EQGraph::EQGraph (EQMotionProcessor& p) : proc (p), st (p.state)
 {
     setWantsKeyboardFocus (true);
-    setTitle (juce::String::fromUTF8 ("Gráfico do equalizador"));
-    setDescription (juce::String::fromUTF8 ("Duplo clique para adicionar uma banda; arraste os nós para mudar frequência e ganho."));
+    lang.bind ([this]
+    {
+        setTitle (tr ("Gráfico do equalizador", "Equalizer graph"));
+        setDescription (tr ("Duplo clique para adicionar uma banda; arraste os nós para mudar frequência e ganho.",
+                            "Double-click to add a band; drag the nodes to change frequency and gain."));
+    });
+    lang.onChange = [this] { repaint(); };
     dbRangeVal = (float) (double) proc.uiState.getProperty ("dbRange", 12.0);
     viewLo = proc.uiState.getProperty ("viewLo", 10.0);
     viewHi = proc.uiState.getProperty ("viewHi", 30000.0);
@@ -528,7 +536,7 @@ void EQGraph::drawNodes (juce::Graphics& g)
             {
                 g.setFont (fonts::ui (9.0f, 2));
                 g.setColour (p.placement == Placement::Mid ? pal::mid : p.placement == Placement::Side ? pal::side : pal::curve);
-                g.drawText (names::placementShort()[(int) p.placement], juce::Rectangle<float> (c.x + rad - 2, c.y - rad - 10, 16, 10), juce::Justification::centredLeft);
+                g.drawText (uinames::placementShort()[(int) p.placement], juce::Rectangle<float> (c.x + rad - 2, c.y - rad - 10, 16, 10), juce::Justification::centredLeft);
             }
         }
 
@@ -557,22 +565,22 @@ void EQGraph::drawReadouts (juce::Graphics& g, juce::Rectangle<float> r)
         g.setColour (pal::textDim); g.drawText (t, juce::Rectangle<float> (lx + 14, 3, 80, 16), juce::Justification::centredLeft);
         lx += 18 + juce::GlyphArrangement::getStringWidth (g.getCurrentFont(), t) + 12;
     };
-    if (proc.analyzer.showPre.load()) legend (pal::pre, "Entrada");
-    if (proc.analyzer.showPost.load()) legend (pal::postFill.brighter (0.8f), juce::String::fromUTF8 ("Saída"));
+    if (proc.analyzer.showPre.load()) legend (pal::pre, tr ("Entrada", "Input"));
+    if (proc.analyzer.showPost.load()) legend (pal::postFill.brighter (0.8f), tr ("Saída", "Output"));
     if (spec.hasSc && proc.analyzer.showSc.load()) legend (pal::sc, "Sidechain");
     if (spec.split == 2) { legend (pal::mid, "Mid"); legend (pal::side, "Side"); }
-    if (proc.analyzer.freeze.load()) { g.setColour (pal::accent); g.drawText ("CONGELADO", juce::Rectangle<float> (lx, 3, 90, 16), juce::Justification::centredLeft); }
+    if (proc.analyzer.freeze.load()) { g.setColour (pal::accent); g.drawText (tr ("CONGELADO", "FROZEN"), juce::Rectangle<float> (lx, 3, 90, 16), juce::Justification::centredLeft); }
     if (! proc.smart.suggestion.bands.empty())
     {
         g.setColour (pal::accent);
-        g.drawText (juce::String::fromUTF8 ("- - pré-visualização, ainda não aplicada"), juce::Rectangle<float> (r.getRight() - 300, 3, 296, 16), juce::Justification::centredRight);
+        g.drawText (tr ("- - pré-visualização, ainda não aplicada", "- - preview, not applied yet"), juce::Rectangle<float> (r.getRight() - 300, 3, 296, 16), juce::Justification::centredRight);
     }
 
     // dica
     g.setColour (pal::textFaint);
     g.setFont (fonts::ui (10.5f));
     if (! mouseInside || hover < 0)
-        g.drawText (juce::String::fromUTF8 ("Duplo clique: adicionar  ·  arrastar: mover  ·  roda/Alt+arrastar: Q  ·  Shift: fino  ·  duplo clique no nó: remover"),
+        g.drawText (tr ("Duplo clique: adicionar  ·  arrastar: mover  ·  roda/Alt+arrastar: Q  ·  Shift: fino  ·  duplo clique no nó: remover", "Double-click: add  ·  drag: move  ·  wheel/Alt+drag: Q  ·  Shift: fine  ·  double-click a node: remove"),
                     juce::Rectangle<float> (r.getX() + 8, r.getBottom() - 18, r.getWidth() - 16, 14), juce::Justification::centredLeft);
 
     // cursor
@@ -592,15 +600,15 @@ void EQGraph::drawReadouts (juce::Graphics& g, juce::Rectangle<float> r)
     if (b >= 0 && bands[(size_t) b].active)
     {
         const auto& p = bands[(size_t) b];
-        juce::String l1 = juce::String (b + 1) + "  " + names::types()[(int) p.type];
+        juce::String l1 = juce::String (b + 1) + "  " + uinames::types()[(int) p.type];
         if (typeIsCut (p.type)) l1 << "  " << names::slopes()[(int) p.slope];
-        if (p.placement != Placement::Stereo) l1 << juce::String::fromUTF8 ("  ·  ") << names::placements()[(int) p.placement];
+        if (p.placement != Placement::Stereo) l1 << juce::String::fromUTF8 ("  ·  ") << uinames::placements()[(int) p.placement];
         juce::String l2 = fmtHz (p.freq);
         if (typeHasGain (p.type)) l2 << "   " << fmtDb (p.gainDb);
-        l2 << "   Q " << juce::String (p.q, 2).replace (".", ",");
+        l2 << "   Q " << juce::String (p.q, 2).replace (".", piradex::i18n::isPortuguese() ? "," : ".");
         juce::String l3;
         if (p.isDynamic())
-            l3 = juce::String::fromUTF8 ("Dinâmica ") + fmtDb (proc.bandDynamicDb (b)) + "  (range " + fmtDb (p.rangeDb) + ")";
+            l3 = tr ("Dinâmica ", "Dynamic ") + fmtDb (proc.bandDynamicDb (b)) + "  (range " + fmtDb (p.rangeDb) + ")";
         const auto c = nodePos (b);
         const float w = 200, h = l3.isEmpty() ? 40.0f : 56.0f;
         auto box = juce::Rectangle<float> (c.x + 16, c.y - h - 10, w, h);
@@ -721,8 +729,8 @@ void EQGraph::mouseDown (const juce::MouseEvent& e)
         juce::PopupMenu m;
         const double f = freqForX (e.position.x), gdb = dbForY (e.position.y);
         m.addSectionHeader (fmtHz (f));
-        m.addItem (juce::String::fromUTF8 ("Adicionar sino aqui"), st.firstFreeBand() >= 0, false, [this, f, gdb] { addBandAt (f, gdb); });
-        m.addItem ("Colar bandas", StateManager::clipboardHasBands(), false, [this]
+        m.addItem (tr ("Adicionar sino aqui", "Add bell here"), st.firstFreeBand() >= 0, false, [this, f, gdb] { addBandAt (f, gdb); });
+        m.addItem (tr ("Colar bandas", "Paste bands"), StateManager::clipboardHasBands(), false, [this]
         {
             auto added = st.pasteBands();
             if (! added.isEmpty()) { selected = added; primary = added.getFirst(); notifySelection(); }
@@ -731,10 +739,10 @@ void EQGraph::mouseDown (const juce::MouseEvent& e)
         juce::PopupMenu range;
         for (float v : { 3.0f, 6.0f, 12.0f, 24.0f, 30.0f })
             range.addItem (juce::String::fromUTF8 ("±") + juce::String ((int) v) + " dB", true, std::abs (dbRangeVal - v) < 0.01f, [this, v] { setDbRange (v); });
-        m.addSubMenu (juce::String::fromUTF8 ("Escala do gráfico"), range);
-        m.addItem ("Repor zoom", isZoomed(), false, [this] { resetZoom(); });
+        m.addSubMenu (tr ("Escala do gráfico", "Graph scale"), range);
+        m.addItem (tr ("Repor zoom", "Reset zoom"), isZoomed(), false, [this] { resetZoom(); });
         m.addSeparator();
-        m.addItem ("Limpar todas as bandas", st.activeBandCount() > 0, false, [this] { st.performAction ([this] { st.clearBands(); }); selectBand (-1); });
+        m.addItem (tr ("Limpar todas as bandas", "Clear all bands"), st.activeBandCount() > 0, false, [this] { st.performAction ([this] { st.clearBands(); }); selectBand (-1); });
         m.showMenuAsync (juce::PopupMenu::Options().withTargetComponent (this).withMousePosition());
         return;
     }
@@ -915,28 +923,28 @@ void EQGraph::showBandMenu (int b)
     if (b < 0) return;
     const auto p = st.band (b);
     juce::PopupMenu m, types, place, slopes;
-    m.addSectionHeader ("Banda " + juce::String (b + 1));
+    m.addSectionHeader (tr ("Banda ", "Band ") + juce::String (b + 1));
     for (int t = 0; t < (int) FilterType::NumTypes; ++t)
-        types.addItem (names::types()[t], true, (int) p.type == t, [this, b, t] { st.performAction ([this, b, t] { st.setBandParam (b, ids::B::Type, (float) t); }); });
-    m.addSubMenu ("Tipo", types);
+        types.addItem (uinames::types()[t], true, (int) p.type == t, [this, b, t] { st.performAction ([this, b, t] { st.setBandParam (b, ids::B::Type, (float) t); }); });
+    m.addSubMenu (tr ("Tipo", "Type"), types);
     if (typeIsCut (p.type))
     {
         for (int s = 0; s < (int) Slope::NumSlopes; ++s)
             slopes.addItem (names::slopes()[s], true, (int) p.slope == s, [this, b, s] { st.performAction ([this, b, s] { st.setBandParam (b, ids::B::Slope, (float) s); }); });
-        m.addSubMenu (juce::String::fromUTF8 ("Inclinação"), slopes);
+        m.addSubMenu (tr ("Inclinação", "Slope"), slopes);
     }
     for (int s = 0; s < (int) Placement::NumPlacements; ++s)
-        place.addItem (names::placements()[s], true, (int) p.placement == s, [this, b, s] { st.performAction ([this, b, s] { st.setBandParam (b, ids::B::Place, (float) s); }); });
-    m.addSubMenu (juce::String::fromUTF8 ("Colocação"), place);
+        place.addItem (uinames::placements()[s], true, (int) p.placement == s, [this, b, s] { st.performAction ([this, b, s] { st.setBandParam (b, ids::B::Place, (float) s); }); });
+    m.addSubMenu (tr ("Colocação", "Placement"), place);
     m.addSeparator();
-    m.addItem (juce::String::fromUTF8 ("Dinâmica"), typeSupportsDynamics (p.type), p.dynamic, [this, b, p] { st.performAction ([this, b, p] { st.setBandParam (b, ids::B::Dyn, p.dynamic ? 0.0f : 1.0f); }); });
-    m.addItem ("Listen (ouvir a zona da banda)", true, proc.listenBandIndex() == b, [this, b] { proc.setListenBand (proc.listenBandIndex() == b ? -1 : b); });
-    m.addItem ("Bypass da banda", true, ! p.enabled, [this, b, p] { st.performAction ([this, b, p] { st.setBandParam (b, ids::B::En, p.enabled ? 0.0f : 1.0f); }); });
+    m.addItem (tr ("Dinâmica", "Dynamic"), typeSupportsDynamics (p.type), p.dynamic, [this, b, p] { st.performAction ([this, b, p] { st.setBandParam (b, ids::B::Dyn, p.dynamic ? 0.0f : 1.0f); }); });
+    m.addItem (tr ("Ouvir (só a zona da banda)", "Listen (band range only)"), true, proc.listenBandIndex() == b, [this, b] { proc.setListenBand (proc.listenBandIndex() == b ? -1 : b); });
+    m.addItem (tr ("Bypass da banda", "Band bypass"), true, ! p.enabled, [this, b, p] { st.performAction ([this, b, p] { st.setBandParam (b, ids::B::En, p.enabled ? 0.0f : 1.0f); }); });
     m.addSeparator();
-    m.addItem ("Copiar", [this, b] { st.copyBands (selected.contains (b) ? selected : juce::Array<int> { b }); });
-    m.addItem ("Colar", StateManager::clipboardHasBands(), false, [this] { auto a = st.pasteBands(); if (! a.isEmpty()) { selected = a; primary = a.getFirst(); notifySelection(); } });
-    m.addItem ("Repor banda", [this, b, p] { st.performAction ([this, b, p] { auto d = BandParams(); d.active = true; d.type = p.type; d.freq = p.freq; d.placement = p.placement;
+    m.addItem (tr ("Copiar", "Copy"), [this, b] { st.copyBands (selected.contains (b) ? selected : juce::Array<int> { b }); });
+    m.addItem (tr ("Colar", "Paste"), StateManager::clipboardHasBands(), false, [this] { auto a = st.pasteBands(); if (! a.isEmpty()) { selected = a; primary = a.getFirst(); notifySelection(); } });
+    m.addItem (tr ("Repor banda", "Reset band"), [this, b, p] { st.performAction ([this, b, p] { auto d = BandParams(); d.active = true; d.type = p.type; d.freq = p.freq; d.placement = p.placement;
                                                                         if (typeIsCut (p.type)) d.q = 0.7071; st.setBand (b, d); }); });
-    m.addItem ("Remover", [this, b] { st.performAction ([this, b] { st.removeBand (b); }); if (proc.listenBandIndex() == b) proc.setListenBand (-1); selectBand (-1); });
+    m.addItem (tr ("Remover", "Remove"), [this, b] { st.performAction ([this, b] { st.removeBand (b); }); if (proc.listenBandIndex() == b) proc.setListenBand (-1); selectBand (-1); });
     m.showMenuAsync (juce::PopupMenu::Options().withTargetComponent (this).withMousePosition());
 }

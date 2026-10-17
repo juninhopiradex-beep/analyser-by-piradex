@@ -5,11 +5,11 @@ on:
     branches: [main, eqmotion]
   workflow_dispatch:
 
-# Repo próprio (eqmotion-by-piradex): release "vX-beta" + ramo "builds".
-# Ramo "eqmotion" dentro de outro repo: release "eqmotion-vX-beta" (pré-lançamento) + ramo "eqmotion-builds".
+# Repo próprio (eqmotion-by-piradex): release "vX" + ramo "builds".
+# Ramo "eqmotion" dentro de outro repo: release "eqmotion-vX" (sem passar a "Latest") + ramo "eqmotion-builds".
 
 env:
-  VERSAO: "1.0.0"
+  VERSAO: "2.0.0"
 
 jobs:
   testes:
@@ -41,6 +41,11 @@ jobs:
     runs-on: macos-14
     env:
       ART: build/EQMotion_artefacts/Release
+      # Assinatura PACE do AAX (opcional): só corre quando estes segredos existirem
+      PACE_ACCOUNT: ${{ secrets.PACE_ACCOUNT }}
+      PACE_PASSWORD: ${{ secrets.PACE_PASSWORD }}
+      PACE_WCGUID: ${{ secrets.PACE_WCGUID }}
+      PACE_EDEN_URL: ${{ secrets.PACE_EDEN_URL }}
     steps:
       - uses: actions/checkout@v4
 
@@ -53,13 +58,14 @@ jobs:
           -DCMAKE_OSX_ARCHITECTURES="arm64;x86_64"
           -DCMAKE_OSX_DEPLOYMENT_TARGET=10.13
 
-      - name: Compilar VST3 + AU
-        run: cmake --build build --config Release --target EQMotion_VST3 EQMotion_AU -- -quiet
+      - name: Compilar VST3 + AU + AAX
+        run: cmake --build build --config Release --target EQMotion_VST3 EQMotion_AU EQMotion_AAX -- -quiet
 
       - name: Verificar arquiteturas e versão mínima do macOS
         run: |
           for b in "$ART/VST3/EQMotion by Piradex.vst3/Contents/MacOS/EQMotion by Piradex" \
-                   "$ART/AU/EQMotion by Piradex.component/Contents/MacOS/EQMotion by Piradex"; do
+                   "$ART/AU/EQMotion by Piradex.component/Contents/MacOS/EQMotion by Piradex" \
+                   "$ART/AAX/EQMotion by Piradex.aaxplugin/Contents/MacOS/EQMotion by Piradex"; do
             echo "== $b"
             archs=$(lipo -archs "$b"); echo "arquiteturas: $archs"
             [[ "$archs" == *x86_64* && "$archs" == *arm64* ]] || { echo "FALTA uma arquitetura"; exit 1; }
@@ -72,6 +78,7 @@ jobs:
         run: |
           codesign --force --deep -s - "$ART/VST3/EQMotion by Piradex.vst3"
           codesign --force --deep -s - "$ART/AU/EQMotion by Piradex.component"
+          codesign --force --deep -s - "$ART/AAX/EQMotion by Piradex.aaxplugin"
 
       - name: Validar Audio Unit (auval, Apple Silicon e Intel/Rosetta)
         run: |
@@ -110,11 +117,35 @@ jobs:
           hdiutil create -volname "EQMotion by Piradex" -srcfolder dmg -ov -format UDZO "EQMotion-by-Piradex-$VERSAO-macOS.dmg"
           ls -la *.pkg *.dmg
 
+      # AAX: o Pro Tools normal só carrega plugins assinados pela PACE (wraptool).
+      # Sem credenciais, sai um .zip "nao-assinado" (serve no Pro Tools Developer).
+      - name: Assinar AAX com PACE (só com credenciais nos segredos)
+        if: env.PACE_ACCOUNT != '' && env.PACE_EDEN_URL != ''
+        run: |
+          curl -sSL -o eden.dmg "$PACE_EDEN_URL"
+          hdiutil attach -nobrowse -mountpoint /Volumes/Eden eden.dmg
+          sudo installer -pkg /Volumes/Eden/*.pkg -target /
+          WRAP="/Applications/PACEAntiPiracy/Eden/Fusion/Current/bin/wraptool"
+          "$WRAP" sign --verbose --account "$PACE_ACCOUNT" --password "$PACE_PASSWORD" --wcguid "$PACE_WCGUID" \
+            --dsig1-compat off --in "$ART/AAX/EQMotion by Piradex.aaxplugin" --out "$ART/AAX/EQMotion by Piradex.aaxplugin"
+          "$WRAP" verify --verbose --in "$ART/AAX/EQMotion by Piradex.aaxplugin"
+          touch aax-assinado
+
+      - name: Empacotar AAX
+        run: |
+          mkdir -p aax
+          cp -R "$ART/AAX/EQMotion by Piradex.aaxplugin" aax/
+          cp installer/LEIA-ME-AAX.txt aax/
+          SUF=$([ -f aax-assinado ] && echo "assinado" || echo "nao-assinado")
+          ditto -c -k --sequesterRsrc aax "EQMotion-by-Piradex-$VERSAO-macOS-AAX-$SUF.zip"
+          ls -la *.zip
+
       - uses: actions/upload-artifact@v4
         with:
           name: EQMotion-by-Piradex-macOS
           path: |
             EQMotion-by-Piradex-*-macOS.dmg
+            EQMotion-by-Piradex-*-macOS-AAX-*.zip
             pluginval-macOS.log
 
   windows:
@@ -122,14 +153,20 @@ jobs:
     runs-on: windows-2022
     env:
       ART: build/EQMotion_artefacts/Release
+      PACE_ACCOUNT: ${{ secrets.PACE_ACCOUNT }}
+      PACE_PASSWORD: ${{ secrets.PACE_PASSWORD }}
+      PACE_WCGUID: ${{ secrets.PACE_WCGUID }}
+      PACE_EDEN_WIN_URL: ${{ secrets.PACE_EDEN_WIN_URL }}
+      PACE_KEYFILE_B64: ${{ secrets.PACE_KEYFILE_B64 }}
+      PACE_KEYPASSWORD: ${{ secrets.PACE_KEYPASSWORD }}
     steps:
       - uses: actions/checkout@v4
 
       - name: Configurar (x64, Visual Studio 2022)
         run: cmake -B build -G "Visual Studio 17 2022" -A x64
 
-      - name: Compilar VST3
-        run: cmake --build build --config Release --target EQMotion_VST3 --parallel 4
+      - name: Compilar VST3 + AAX
+        run: cmake --build build --config Release --target EQMotion_VST3 EQMotion_AAX --parallel 4
 
       - name: Verificar binário x64 e dependências
         shell: pwsh
@@ -142,6 +179,11 @@ jobs:
           $deps = & $dumpbin.FullName /dependents $dll
           $deps
           if ($deps -match "VCRUNTIME|MSVCP") { throw "Depende do VC++ Redistributable (runtime devia estar embutido)" }
+          $aax = "$env:ART/AAX/EQMotion by Piradex.aaxplugin/Contents/x64/EQMotion by Piradex.aaxplugin"
+          if (!(Test-Path $aax)) { throw "AAX não encontrado" }
+          & $dumpbin.FullName /headers $aax | Select-String "machine"
+          $deps = & $dumpbin.FullName /dependents $aax
+          if ($deps -match "VCRUNTIME|MSVCP") { throw "AAX depende do VC++ Redistributable" }
 
       - name: Validar com pluginval (nível 5)
         continue-on-error: true
@@ -160,6 +202,29 @@ jobs:
           & $iscc "/DVersao=$env:VERSAO" installer\windows.iss
           if ($LASTEXITCODE -ne 0) { throw "Inno Setup falhou" }
           Compress-Archive -Path "$env:ART/VST3/EQMotion by Piradex.vst3", installer/LEIA-ME-Windows.txt -DestinationPath "out-win/EQMotion-by-Piradex-$env:VERSAO-Windows-VST3.zip"
+          Get-ChildItem out-win
+
+      - name: Assinar AAX com PACE (só com credenciais nos segredos)
+        if: env.PACE_ACCOUNT != '' && env.PACE_EDEN_WIN_URL != ''
+        shell: pwsh
+        run: |
+          Invoke-WebRequest -Uri $env:PACE_EDEN_WIN_URL -OutFile eden.exe
+          Start-Process -Wait -FilePath .\eden.exe -ArgumentList "/quiet"
+          [IO.File]::WriteAllBytes("pace.p12", [Convert]::FromBase64String($env:PACE_KEYFILE_B64))
+          $wrap = Get-ChildItem "${env:ProgramFiles(x86)}\PACEAntiPiracy" -Recurse -Filter wraptool.exe | Select-Object -First 1
+          $bundle = "$env:ART/AAX/EQMotion by Piradex.aaxplugin"
+          & $wrap.FullName sign --verbose --account $env:PACE_ACCOUNT --password $env:PACE_PASSWORD --wcguid $env:PACE_WCGUID `
+            --keyfile pace.p12 --keypassword $env:PACE_KEYPASSWORD --in $bundle --out $bundle
+          if ($LASTEXITCODE -ne 0) { throw "wraptool falhou" }
+          Remove-Item pace.p12
+          New-Item aax-assinado -ItemType File | Out-Null
+
+      - name: Empacotar AAX
+        shell: pwsh
+        run: |
+          $suf = if (Test-Path aax-assinado) { "assinado" } else { "nao-assinado" }
+          New-Item -ItemType Directory -Force out-win | Out-Null
+          Compress-Archive -Path "$env:ART/AAX/EQMotion by Piradex.aaxplugin", installer/LEIA-ME-AAX.txt -DestinationPath "out-win/EQMotion-by-Piradex-$env:VERSAO-Windows-AAX-$suf.zip"
           Get-ChildItem out-win
 
       - uses: actions/upload-artifact@v4
@@ -184,16 +249,16 @@ jobs:
           path: dist
           merge-multiple: true
 
-      - name: Publicar pré-lançamento (macOS + Windows)
+      - name: Publicar versão (macOS + Windows)
         run: |
           ls -la dist
-          if [[ "$GITHUB_REPOSITORY" == */eqmotion-by-piradex ]]; then TAG="v$VERSAO-beta"; else TAG="eqmotion-v$VERSAO-beta"; fi
+          if [[ "$GITHUB_REPOSITORY" == */eqmotion-by-piradex ]]; then TAG="v$VERSAO"; LATEST=true; else TAG="eqmotion-v$VERSAO"; LATEST=false; fi
           gh release delete "$TAG" -y --cleanup-tag -R "$GITHUB_REPOSITORY" || true
           FICHEIROS=$(find dist -type f \( -name '*.dmg' -o -name '*.exe' -o -name '*.zip' \))
           echo "$FICHEIROS"
           gh release create "$TAG" $FICHEIROS -R "$GITHUB_REPOSITORY" \
-            --prerelease --latest=false --target "$GITHUB_SHA" --title "EQMotion by Piradex $VERSAO (beta)" \
-            --notes "Equalizador dinâmico de 24 bandas. macOS 10.13+ (Intel e Apple Silicon): EQMotion-by-Piradex-$VERSAO-macOS.dmg · Windows 10/11 64 bits: EQMotion-by-Piradex-$VERSAO-Windows-Setup.exe (ou o .zip para instalação manual)."
+            --latest=$LATEST --target "$GITHUB_SHA" --title "EQMotion by Piradex $VERSAO" \
+            --notes "Interface em Português e Inglês (seletor PT | EN). AAX (Pro Tools): ficheiros *-AAX-*.zip, ver LEIA-ME-AAX.txt. Equalizador dinâmico de 24 bandas. macOS 10.13+ (Intel e Apple Silicon): EQMotion-by-Piradex-$VERSAO-macOS.dmg · Windows 10/11 64 bits: EQMotion-by-Piradex-$VERSAO-Windows-Setup.exe (ou o .zip para instalação manual)."
 
       - name: Guardar binários num ramo próprio
         run: |

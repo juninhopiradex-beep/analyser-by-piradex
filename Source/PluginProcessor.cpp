@@ -1,4 +1,5 @@
 #include "PluginProcessor.h"
+#include "i18n/PiradexLanguage.h"
 #include "PluginEditor.h"
 
 using namespace eqm;
@@ -608,7 +609,7 @@ void EQMotionProcessor::smartStartLearning()
     smart.learning = true;
     smart.hasResult = false;
     smart.suggestion = {};
-    smart.message = juce::String::fromUTF8 ("A aprender… deixe tocar a passagem e carregue em Parar.");
+    smart.message = piradex::i18n::tr ("A aprender… deixe tocar a passagem e carregue em Parar.", "Learning… let the passage play and press Stop.");
     if (onSmartChanged) onSmartChanged();
 }
 
@@ -633,6 +634,7 @@ void EQMotionProcessor::smartStopLearning()
 
 void EQMotionProcessor::smartRecompute()
 {
+    eqm::smartEnglish().store (! piradex::i18n::isPortuguese());   // textos das sugestões no idioma da interface
     if (smart.hasResult)
     {
         SmartSettings s;
@@ -647,7 +649,7 @@ void EQMotionProcessor::smartRecompute()
         if (smartOpNeedsSidechain (smart.op) && ! smart.result.hasSidechain)
         {
             smart.suggestion = {};
-            smart.message = juce::String::fromUTF8 ("Sem sinal no sidechain: ligue a fonte a destacar ao sidechain e aprenda de novo.");
+            smart.message = piradex::i18n::tr ("Sem sinal no sidechain: ligue a fonte a destacar ao sidechain e aprenda de novo.", "No sidechain signal: route the source to feature to the sidechain and learn again.");
         }
         else
         {
@@ -666,8 +668,8 @@ void EQMotionProcessor::smartApply()
     const int opId = state.applySmart (smart.suggestion.bands, applied);
     smart.lastAppliedOp = opId;
     const int wanted = (int) smart.suggestion.bands.size();
-    smart.message = applied == wanted ? juce::String::fromUTF8 ("Aplicado: ") + juce::String (applied) + (applied == 1 ? " banda." : " bandas.")
-                                      : juce::String::fromUTF8 ("Só havia espaço para ") + juce::String (juce::jmin (free, applied)) + " de " + juce::String (wanted) + " bandas.";
+    smart.message = applied == wanted ? piradex::i18n::tr ("Aplicado: ", "Applied: ") + juce::String (applied) + (applied == 1 ? piradex::i18n::tr (" banda.", " band.") : piradex::i18n::tr (" bandas.", " bands."))
+                                      : piradex::i18n::tr ("Só havia espaço para ", "There was only room for ") + juce::String (juce::jmin (free, applied)) + piradex::i18n::tr (" de ", " of ") + juce::String (wanted) + piradex::i18n::tr (" bandas.", " bands.");
     smart.suggestion = {};
     smart.hasResult = false;
     if (onSmartChanged) onSmartChanged();
@@ -677,7 +679,7 @@ void EQMotionProcessor::smartRevert()
 {
     if (! state.hasSmartBands (smart.lastAppliedOp)) return;
     state.revertSmart (smart.lastAppliedOp);
-    smart.message = juce::String::fromUTF8 ("Operação revertida (as suas outras edições ficaram intactas).");
+    smart.message = piradex::i18n::tr ("Operação revertida (as suas outras edições ficaram intactas).", "Operation reverted (your other edits are intact).");
     if (onSmartChanged) onSmartChanged();
 }
 

@@ -5,11 +5,9 @@ using namespace eqm;
 // ============================================================================= barra de bandas
 BandStrip::BandStrip (EQMotionProcessor& p) : proc (p)
 {
-    add.setTooltip ("Adicionar banda");
     add.getProperties().set ("radius", 5.0f);
     add.onClick = [this] { if (onAdd) onAdd(); };
     clear.getProperties().set ("flat", true);
-    clear.setTooltip ("Remover todas as bandas (pode desfazer)");
     clear.onClick = [this]
     {
         proc.state.performAction ([this] { proc.state.clearBands(); });
@@ -18,6 +16,13 @@ BandStrip::BandStrip (EQMotionProcessor& p) : proc (p)
     };
     addAndMakeVisible (add);
     addAndMakeVisible (clear);
+    lang.bind ([this]
+    {
+        add.setTooltip (tr ("Adicionar banda", "Add band"));
+        clear.setButtonText (tr ("Limpar bandas", "Clear bands"));
+        clear.setTooltip (tr ("Remover todas as bandas (pode desfazer)", "Remove all bands (can be undone)"));
+    });
+    lang.onChange = [this] { repaint(); };
     startTimerHz (10);
 }
 
@@ -52,7 +57,7 @@ void BandStrip::paint (juce::Graphics& g)
     g.drawHorizontalLine (0, 0, (float) getWidth());
     g.setColour (pal::textDim);
     g.setFont (fonts::ui (12.0f, 1));
-    g.drawText ("Bandas", juce::Rectangle<int> (12, 0, 50, getHeight()), juce::Justification::centredLeft);
+    g.drawText (tr ("Bandas", "Bands"), juce::Rectangle<int> (12, 0, 50, getHeight()), juce::Justification::centredLeft);
     g.setColour (pal::textFaint);
     g.setFont (fonts::mono (10.5f));
     g.drawText (juce::String ((int) visible.size()) + "/24", juce::Rectangle<int> (58, 0, 36, getHeight()), juce::Justification::centredLeft);
@@ -97,7 +102,8 @@ namespace
 class TypeButton : public juce::Button
 {
 public:
-    explicit TypeButton (int t) : juce::Button (names::types()[t]), type (t) { setTooltip (names::types()[t]); }
+    explicit TypeButton (int t) : juce::Button (names::types()[t]), type (t) {}
+    juce::String getTooltip() override { return uinames::types()[type]; }
     juce::Colour colour = pal::accent;
     void paintButton (juce::Graphics& g, bool over, bool) override
     {
@@ -134,18 +140,14 @@ BandInspector::BandInspector (EQMotionProcessor& p) : proc (p)
         addAndMakeVisible (b);
     }
     slope.addItemList (names::slopes(), 1);
-    place.addItemList (names::placements(), 1);
-    slope.setTooltip (juce::String::fromUTF8 ("Inclinação do corte"));
-    place.setTooltip (juce::String::fromUTF8 ("Onde a banda atua: estéreo, só esquerda/direita, só Mid ou só Side"));
+    place.addItemList (uinames::placements(), 1);
     for (auto* c : { &slope, &place }) addAndMakeVisible (c);
 
     for (auto* k : { &freq, &gain, &q, &thr, &range, &ratio, &atk, &hold, &rel, &knee }) addAndMakeVisible (k);
 
     listen.setClickingTogglesState (false);
     listen.getProperties().set ("accent", (juce::int64) pal::accent2.getARGB());
-    listen.setTooltip (juce::String::fromUTF8 ("Ouvir só a zona desta banda"));
     listen.onClick = [this] { if (current >= 0) proc.setListenBand (proc.listenBandIndex() == current ? -1 : current); };
-    bypass.setTooltip ("Tirar esta banda do processamento sem a apagar");
     bypass.getProperties().set ("accent", (juce::int64) pal::accent2.getARGB());
     bypass.onClick = [this]
     {
@@ -154,7 +156,6 @@ BandInspector::BandInspector (EQMotionProcessor& p) : proc (p)
         proc.state.performAction ([this, en] { proc.state.setBandParam (current, ids::B::En, en ? 0.0f : 1.0f); });
     };
     reset.getProperties().set ("flat", true);
-    reset.setTooltip ("Repor os valores desta banda");
     reset.onClick = [this]
     {
         if (current < 0) return;
@@ -178,10 +179,38 @@ BandInspector::BandInspector (EQMotionProcessor& p) : proc (p)
     for (auto* b : { &listen, &bypass, &reset, &remove }) addAndMakeVisible (b);
 
     addAndMakeVisible (dynOn);
-    dir.setTooltips ({ "Atua quando o detetor sobe acima do limiar", "Atua quando o detetor desce abaixo do limiar" });
-    src.setTooltips ({ juce::String::fromUTF8 ("Detetor ouve esta pista"), juce::String::fromUTF8 ("Detetor ouve a entrada sidechain (o sinal principal não muda)") });
-    det.setTooltips ({ "Picos (rápido)", juce::String::fromUTF8 ("Média quadrática (mais suave)") });
     for (auto* s : { &dir, &src, &det }) addAndMakeVisible (s);
+    lang.bind ([this]
+    {
+        const int sp = place.getSelectedId();
+        const auto pl = uinames::placements();
+        for (int i = 0; i < pl.size(); ++i) place.changeItemText (i + 1, pl[i]);
+        if (sp > 0) place.setSelectedId (sp, juce::dontSendNotification);
+        slope.setTooltip (tr ("Inclinação do corte", "Cut slope"));
+        place.setTooltip (tr ("Onde a banda atua: estéreo, só esquerda/direita, só Mid ou só Side", "Where the band acts: stereo, left/right only, Mid only or Side only"));
+        freq.setText (tr ("FREQUÊNCIA", "FREQUENCY"));
+        gain.setText (tr ("GANHO", "GAIN"));
+        thr.setText (tr ("LIMIAR", "THRESHOLD"));
+        ratio.setText ("RATIO");
+        atk.setText (tr ("ATAQUE", "ATTACK"));
+        rel.setText (tr ("LIBERTAÇÃO", "RELEASE"));
+        knee.setText (tr ("JOELHO", "KNEE"));
+        listen.setButtonText (tr ("Ouvir", "Listen"));
+        listen.setTooltip (tr ("Ouvir só a zona desta banda", "Hear only this band's range"));
+        bypass.setTooltip (tr ("Tirar esta banda do processamento sem a apagar", "Take this band out of processing without deleting it"));
+        reset.setButtonText (tr ("Repor", "Reset"));
+        reset.setTooltip (tr ("Repor os valores desta banda", "Reset this band's values"));
+        remove.setButtonText (tr ("Remover", "Remove"));
+        dynOn.setButtonText (tr ("Dinâmica", "Dynamic"));
+        dir.setLabels ({ tr ("Acima", "Above"), tr ("Abaixo", "Below") });
+        dir.setTooltips ({ tr ("Atua quando o detetor sobe acima do limiar", "Acts when the detector rises above the threshold"),
+                           tr ("Atua quando o detetor desce abaixo do limiar", "Acts when the detector falls below the threshold") });
+        src.setLabels ({ tr ("Pista", "Track"), "Sidechain" });
+        src.setTooltips ({ tr ("Detetor ouve esta pista", "Detector listens to this track"),
+                           tr ("Detetor ouve a entrada sidechain (o sinal principal não muda)", "Detector listens to the sidechain input (the main signal is unchanged)") });
+        det.setTooltips ({ tr ("Picos (rápido)", "Peaks (fast)"), tr ("Média quadrática (mais suave)", "RMS (smoother)") });
+    });
+    lang.onChange = [this] { repaint(); };
     thr.setColour (pal::accent);
     setBand (-1);
     startTimerHz (30);
@@ -310,7 +339,7 @@ void BandInspector::paint (juce::Graphics& g)
     {
         g.setColour (pal::textFaint);
         g.setFont (fonts::ui (13.0f));
-        g.drawText (juce::String::fromUTF8 ("Selecione uma banda — ou faça duplo clique no gráfico para criar uma."),
+        g.drawText (tr ("Selecione uma banda — ou faça duplo clique no gráfico para criar uma.", "Select a band — or double-click the graph to create one."),
                     getLocalBounds(), juce::Justification::centred);
         return;
     }
@@ -321,10 +350,10 @@ void BandInspector::paint (juce::Graphics& g)
     g.fillRoundedRectangle (headerArea.removeFromLeft (12).withSizeKeepingCentre (10, 10).toFloat(), 2.5f);
     g.setColour (pal::text);
     g.setFont (fonts::ui (15.0f, 2));
-    g.drawText ("Banda " + juce::String (current + 1), headerArea.withTrimmedLeft (8), juce::Justification::centredLeft);
+    g.drawText (tr ("Banda ", "Band ") + juce::String (current + 1), headerArea.withTrimmedLeft (8), juce::Justification::centredLeft);
     g.setColour (pal::textDim);
     g.setFont (fonts::ui (12.5f));
-    g.drawText (names::types()[(int) shown.type], headerArea.withTrimmedLeft (90), juce::Justification::centredLeft);
+    g.drawText (uinames::types()[(int) shown.type], headerArea.withTrimmedLeft (90), juce::Justification::centredLeft);
     if (proc.state.bandTag (current) > 0)
     {
         g.setColour (pal::accent);
@@ -337,7 +366,7 @@ void BandInspector::paint (juce::Graphics& g)
     g.drawVerticalLine (dynArea.getX() - 10, (float) dynArea.getY() + 2, (float) dynArea.getBottom() - 2);
     g.setColour (pal::textFaint);
     g.setFont (fonts::ui (10.5f, 1, 0.04f));
-    g.drawText (juce::String::fromUTF8 ("COLOCAÇÃO"), place.getBounds().translated (0, -16).withHeight (14), juce::Justification::centredLeft);
+    g.drawText (tr ("COLOCAÇÃO", "PLACEMENT"), place.getBounds().translated (0, -16).withHeight (14), juce::Justification::centredLeft);
 
     // medidor dinâmico: nível do detetor vs limiar e redução atual
     if (shown.isDynamic())

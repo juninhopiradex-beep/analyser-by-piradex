@@ -7,6 +7,7 @@
 //  dezenas de notches extremos.
 // =============================================================================
 #pragma once
+#include <atomic>
 #include "Spectrum.h"
 #include "Dynamics.h"
 #include <cstdio>
@@ -17,16 +18,20 @@ namespace eqm
 {
 enum class SmartOp : int { Deresonate = 0, DeEss, AutoCut, MatchReference, Unmask, TonalBalance, NumOps };
 
+// Idioma dos textos gerados (o editor/processador acerta-o com o idioma da interface)
+inline std::atomic<bool>& smartEnglish() { static std::atomic<bool> e { false }; return e; }
+inline const char* SL (const char* pt, const char* en) { return smartEnglish().load() ? en : pt; }
+
 inline const char* smartOpName (SmartOp op)
 {
     switch (op)
     {
         case SmartOp::Deresonate:     return "Deresonate";
         case SmartOp::DeEss:          return "De-ess";
-        case SmartOp::AutoCut:        return "Auto cortes (graves/agudos)";
-        case SmartOp::MatchReference: return "Igualar referência";
-        case SmartOp::Unmask:         return "Unmask (abrir espaço)";
-        case SmartOp::TonalBalance:   return "Equilíbrio tonal";
+        case SmartOp::AutoCut:        return SL ("Auto cortes (graves/agudos)", "Auto cuts (low/high)");
+        case SmartOp::MatchReference: return SL ("Igualar referência", "Match reference");
+        case SmartOp::Unmask:         return SL ("Unmask (abrir espaço)", "Unmask (make room)");
+        case SmartOp::TonalBalance:   return SL ("Equilíbrio tonal", "Tonal balance");
         default: return "";
     }
 }
@@ -321,7 +326,12 @@ inline std::string hz (double f)
     for (auto& c : s) if (c == '.') c = ',';
     return s;
 }
-inline std::string bandsWord (size_t n) { return std::to_string (n) + (n == 1 ? " banda" : " bandas"); }
+inline std::string dynBandsWord (size_t n)
+{
+    if (smartEnglish().load()) return std::to_string (n) + (n == 1 ? " dynamic band" : " dynamic bands");
+    return std::to_string (n) + (n == 1 ? " banda dinâmica" : " bandas dinâmicas");
+}
+inline std::string bandsWord (size_t n) { return std::to_string (n) + (n == 1 ? SL (" banda", " band") : SL (" bandas", " bands")); }
 
 // largura (oitavas) à metade da proeminência à volta de um pico
 inline double widthOct (const std::vector<double>& p, int i, double fraction = 0.5)
@@ -383,8 +393,8 @@ inline SmartSuggestion suggest (const LearnResult& r, const SmartSettings& s)
     using namespace smartdetail;
     SmartSuggestion out;
     const double amount = clampv (s.amount, 0.0, 1.0);
-    if (r.frames < 8 || r.seconds < 2.0) { out.summary = "Ainda a aprender — toque pelo menos 2 segundos."; return out; }
-    if (r.meanLevelDb < -75.0) { out.summary = "Sinal demasiado baixo para analisar."; return out; }
+    if (r.frames < 8 || r.seconds < 2.0) { out.summary = SL ("Ainda a aprender — toque pelo menos 2 segundos.", "Still learning — play at least 2 seconds."); return out; }
+    if (r.meanLevelDb < -75.0) { out.summary = SL ("Sinal demasiado baixo para analisar.", "Signal too low to analyse."); return out; }
     const int G = (int) r.mainDb.size();
 
     switch (s.op)
@@ -443,9 +453,9 @@ inline SmartSuggestion suggest (const LearnResult& r, const SmartSettings& s)
                 out.bands.push_back (b);
                 if (where.size() < 4) where.push_back (hz (f));
             }
-            if (out.bands.empty()) { out.summary = "Sem ressonâncias persistentes nesta zona."; return out; }
+            if (out.bands.empty()) { out.summary = SL ("Sem ressonâncias persistentes nesta zona.", "No persistent resonances in this range."); return out; }
             std::sort (out.bands.begin(), out.bands.end(), [] (const BandParams& a, const BandParams& b) { return a.freq < b.freq; });
-            out.summary = bandsWord (out.bands.size()) + " dinâmicas · ";
+            out.summary = dynBandsWord (out.bands.size()) + " · ";
             for (size_t i = 0; i < where.size(); ++i) out.summary += (i ? ", " : "") + where[i];
             break;
         }
@@ -455,7 +465,7 @@ inline SmartSuggestion suggest (const LearnResult& r, const SmartSettings& s)
             const int T = r.frames, B = TwelfthBands::kCount;
             std::vector<int> inBand;
             for (int j = 0; j < B; ++j) if (inRange (TwelfthBands::centre (j), s)) inBand.push_back (j);
-            if (inBand.empty()) { out.summary = "Escolha uma zona de frequência válida."; return out; }
+            if (inBand.empty()) { out.summary = SL ("Escolha uma zona de frequência válida.", "Choose a valid frequency range."); return out; }
             std::vector<double> ratio ((size_t) T), level ((size_t) T);
             for (int t = 0; t < T; ++t)
             {
@@ -471,7 +481,7 @@ inline SmartSuggestion suggest (const LearnResult& r, const SmartSettings& s)
             std::vector<bool> sib ((size_t) T);
             int ns = 0;
             for (int t = 0; t < T; ++t) { sib[(size_t) t] = ratio[(size_t) t] > medR + 6.0 && level[(size_t) t] > maxL - 30.0; ns += sib[(size_t) t]; }
-            if (ns < std::max (2, T / 50)) { out.summary = "Pouca sibilância detetada nesta passagem."; return out; }
+            if (ns < std::max (2, T / 50)) { out.summary = SL ("Pouca sibilância detetada nesta passagem.", "Little sibilance detected in this passage."); return out; }
             // centro da sibilância: onde as tramas sibilantes têm mais energia, entre as bandas
             // em que claramente sobem face às restantes (+3 dB)
             std::vector<double> diff ((size_t) B, -100.0), sibAvg ((size_t) B, -300.0);
@@ -484,7 +494,7 @@ inline SmartSuggestion suggest (const LearnResult& r, const SmartSettings& s)
             }
             int bj = -1;
             for (int j : inBand) if (diff[(size_t) j] > 3.0 && (bj < 0 || sibAvg[(size_t) j] > sibAvg[(size_t) bj])) bj = j;
-            if (bj < 0) { out.summary = "Pouca sibilância detetada nesta passagem."; return out; }
+            if (bj < 0) { out.summary = SL ("Pouca sibilância detetada nesta passagem.", "Little sibilance detected in this passage."); return out; }
             int a = bj, b = bj;
             while (a > inBand.front() && sibAvg[(size_t) a - 1] > sibAvg[(size_t) bj] - 3.0) --a;
             while (b < inBand.back() && sibAvg[(size_t) b + 1] > sibAvg[(size_t) bj] - 3.0) ++b;
@@ -504,7 +514,7 @@ inline SmartSuggestion suggest (const LearnResult& r, const SmartSettings& s)
                 band.thresholdDb = std::round (std::max (LearnResult::otsu (ser), LearnResult::percentile (ser, 0.5) + 2.0) * 2.0) / 2.0;
             }
             out.bands.push_back (band);
-            out.summary = std::string ("1 banda dinâmica · sibilância em ") + hz (fc) + " · " + std::to_string ((100 * ns) / T) + "% das tramas";
+            out.summary = std::string (SL ("1 banda dinâmica · sibilância em ", "1 dynamic band · sibilance at ")) + hz (fc) + " · " + std::to_string ((100 * ns) / T) + SL ("% das tramas", "% of frames");
             break;
         }
 
@@ -529,7 +539,7 @@ inline SmartSuggestion suggest (const LearnResult& r, const SmartSettings& s)
                     {
                         BandParams b; b.active = true; b.type = FilterType::LowCut; b.freq = fc; b.q = 0.7071;
                         b.slope = below < maxLvl - 40.0 ? Slope::dB24 : Slope::dB12;
-                        out.bands.push_back (b); parts.push_back ("graves abaixo de " + hz (fc));
+                        out.bands.push_back (b); parts.push_back (SL ("graves abaixo de ", "lows below ") + hz (fc));
                     }
                 }
             }
@@ -547,13 +557,13 @@ inline SmartSuggestion suggest (const LearnResult& r, const SmartSettings& s)
                     if (inRange (fc, s))
                     {
                         BandParams b; b.active = true; b.type = FilterType::HighCut; b.freq = fc; b.q = 0.7071; b.slope = Slope::dB12;
-                        out.bands.push_back (b); parts.push_back ("agudos acima de " + hz (fc));
+                        out.bands.push_back (b); parts.push_back (SL ("agudos acima de ", "highs above ") + hz (fc));
                     }
                 }
             }
-            if (out.bands.empty()) { out.summary = "Sem cortes úteis: há conteúdo musical nas pontas (sub e ar protegidos)."; return out; }
-            out.summary = "Cortar ";
-            for (size_t i = 0; i < parts.size(); ++i) out.summary += (i ? " e " : "") + parts[i];
+            if (out.bands.empty()) { out.summary = SL ("Sem cortes úteis: há conteúdo musical nas pontas (sub e ar protegidos).", "No useful cuts: there is musical content at the extremes (sub and air protected)."); return out; }
+            out.summary = SL ("Cortar ", "Cut ");
+            for (size_t i = 0; i < parts.size(); ++i) out.summary += (i ? SL (" e ", " and ") : "") + parts[i];
             break;
         }
 
@@ -565,7 +575,7 @@ inline SmartSuggestion suggest (const LearnResult& r, const SmartSettings& s)
             {
                 if (! s.referenceDb.empty() && (int) s.referenceDb.size() == G) target = s.referenceDb;
                 else if (r.hasSidechain) target = r.scDb;
-                else { out.summary = "Ligue a referência ao sidechain (ou escolha outra instância) e aprenda de novo."; return out; }
+                else { out.summary = SL ("Ligue a referência ao sidechain (ou escolha outra instância) e aprenda de novo.", "Route the reference to the sidechain (or choose another instance) and learn again."); return out; }
             }
             else
             {
@@ -593,14 +603,14 @@ inline SmartSuggestion suggest (const LearnResult& r, const SmartSettings& s)
             }
             if (s.op == SmartOp::MatchReference) out.bands = fitResidual (d, s, 8, 9.0 * std::max (0.2, amount), 110.0, 8000.0, 0.4, 4.0);
             else                                  out.bands = fitResidual (d, s, 4, 4.0 * std::max (0.2, amount), 150.0, 6000.0, 0.5, 1.0);
-            if (out.bands.empty()) { out.summary = "Já está muito próximo — nada a corrigir."; return out; }
-            out.summary = bandsWord (out.bands.size()) + (s.op == SmartOp::MatchReference ? " para igualar a referência" : " para equilibrar o tom");
+            if (out.bands.empty()) { out.summary = SL ("Já está muito próximo — nada a corrigir.", "Already very close — nothing to correct."); return out; }
+            out.summary = bandsWord (out.bands.size()) + (s.op == SmartOp::MatchReference ? SL (" para igualar a referência", " to match the reference") : SL (" para equilibrar o tom", " to balance the tone"));
             break;
         }
 
         case SmartOp::Unmask:
         {
-            if (! r.hasSidechain) { out.summary = "Ligue o sinal a destacar (ex.: voz) ao sidechain e aprenda de novo."; return out; }
+            if (! r.hasSidechain) { out.summary = SL ("Ligue o sinal a destacar (ex.: voz) ao sidechain e aprenda de novo.", "Route the signal to feature (e.g. vocal) to the sidechain and learn again."); return out; }
             const auto m = smooth (r.mainDb, 1.0 / 6.0), sc = smooth (r.scDb, 1.0 / 6.0), sc1 = smooth (r.scDb, 1.0);
             double mMax = -300, sMax = -300;
             for (int i = 0; i < G; ++i) if (inRange (LogGrid::freq (i), s)) { mMax = std::max (mMax, m[(size_t) i]); sMax = std::max (sMax, sc[(size_t) i]); }
@@ -640,9 +650,9 @@ inline SmartSuggestion suggest (const LearnResult& r, const SmartSettings& s)
                 out.bands.push_back (b);
                 where.push_back (hz (f));
             }
-            if (out.bands.empty()) { out.summary = "Pouca sobreposição entre o sinal e o sidechain."; return out; }
+            if (out.bands.empty()) { out.summary = SL ("Pouca sobreposição entre o sinal e o sidechain.", "Little overlap between the signal and the sidechain."); return out; }
             std::sort (out.bands.begin(), out.bands.end(), [] (const BandParams& a, const BandParams& b) { return a.freq < b.freq; });
-            out.summary = bandsWord (out.bands.size()) + " dinâmicas pelo sidechain · ";
+            out.summary = dynBandsWord (out.bands.size()) + SL (" pelo sidechain · ", " keyed by the sidechain · ");
             for (size_t i = 0; i < where.size(); ++i) out.summary += (i ? ", " : "") + where[i];
             break;
         }

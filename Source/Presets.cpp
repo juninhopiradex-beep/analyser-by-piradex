@@ -1,4 +1,5 @@
 #include "Presets.h"
+#include "i18n/PiradexLanguage.h"
 
 namespace presets
 {
@@ -6,6 +7,86 @@ static FactoryPreset P (const char* folder, const char* name, const char* desc, 
                         std::map<juce::String, float> g = {})
 {
     return { juce::String::fromUTF8 (folder), juce::String::fromUTF8 (name), juce::String::fromUTF8 (desc), std::move (b), std::move (g) };
+}
+
+// ---------------------------------------------------------------------------
+// Nomes e descrições em inglês (o nome guardado na sessão continua o português)
+namespace
+{
+    struct EnText { const char* pt; const char* name; const char* desc; };
+    const EnText kEnglish[] = {
+        { "Voz clara", "Clear vocal", "Cleans the lows, removes boxiness at 300 Hz and opens the air." },
+        { "Voz rap presente", "Present rap vocal", "Controlled body, presence and dynamic sibilance." },
+        { "Voz R&B suave", "Smooth R&B vocal", "Warmth in the low mids, silky highs." },
+        { "Voz kizomba/semba", "Kizomba/semba vocal", "Warm, upfront vocal without harshness." },
+        { "Backing vocals", "Backing vocals", "Pushes back and makes room for the lead vocal." },
+        { "Bombo com punch", "Punchy kick", "Solid sub, less boxiness, defined click." },
+        { "Tarola com corpo", "Full-bodied snare", "Body at 200 Hz and crack, a touch of air." },
+        { "Tarola dinâmica", "Dynamic snare", "Tames the snare ring only on the hits." },
+        { "Overheads", "Overheads", "Bright cymbals without excess lows." },
+        { "Hi-hats suaves", "Soft hi-hats", "Takes the aggression out of 5–8 kHz." },
+        { "Baixo 808 controlado", "Controlled 808", "Stable sub, harmonics audible on small speakers." },
+        { "Baixo elétrico", "Electric bass", "Body, definition and less mud." },
+        { "Sub mono limpo", "Clean mono sub", "Lows only in the centre; sides below 120 Hz cut." },
+        { "Synth bass", "Synth bass", "Bright attack, clean low mids." },
+        { "Brilho de bus", "Bus sheen", "Gentle tilt and air — glues the mix." },
+        { "Limpar lama", "Clean up mud", "Removes 200–400 Hz only when it builds up." },
+        { "Cola analógica", "Analog glue", "Character Warm with a broad, gentle curve." },
+        { "Mid/Side largo", "Wide Mid/Side", "More air on the sides, solid centre." },
+        { "Master transparente", "Transparent master", "Linear phase, broad and discreet corrections." },
+        { "Master quente", "Warm master", "Rounded lows, soft highs, Character Subtle." },
+        { "Master M/S", "M/S master", "Clearer centre, wider sides, mono lows." },
+        { "Master de-harsh", "De-harsh master", "De-harsh on and dynamic highs." },
+        { "Streaming brilhante", "Bright streaming", "Air and definition without adding harshness." },
+        { "Ressonâncias de sala", "Room resonances", "Dynamic notches typical of small rooms." },
+        { "Voz anasalada", "Nasal vocal", "Tames 1–2 kHz only when it shows up." },
+        { "Guitarra acústica", "Acoustic guitar", "Removes the body 'boom' and string peaks." },
+        { "Ponto de partida", "Starting point", "No bands: use Smart Ops → Deresonate." },
+        { "De-ess voz masculina", "De-ess male vocal", "Sibilance around 5–6 kHz." },
+        { "De-ess voz feminina", "De-ess female vocal", "Sibilance around 7–8 kHz." },
+        { "De-ess largo", "Wide de-ess", "Dynamic shelf above 6 kHz — gentle." },
+        { "De-ess duplo", "Dual de-ess", "Two points: 'S' and 'T'." },
+        { "Voz sobre beat", "Vocal over beat", "On the beat; vocal on the sidechain. Opens 1–4 kHz when the vocal comes in." },
+        { "Bombo sobre baixo", "Kick over bass", "On the bass; kick on the sidechain. Opens the sub on the hits." },
+        { "Voz sobre pads", "Vocal over pads", "On the pads/keys; vocal on the sidechain." },
+        { "Ducking de graves", "Low-end ducking", "Removes lows from the instrumental when the sidechain plays." },
+        { "Rádio antigo", "Old radio", "Narrow band with projected mids." },
+        { "Telefone", "Telephone", "Classic 300–3400 Hz band-pass." },
+        { "Lo-fi abafado", "Muffled lo-fi", "Highs out, soft lows." },
+        { "Wah fixo", "Fixed wah", "Resonant peak for effect." },
+        { "Bomba de graves (expansão)", "Bass pump (expansion)", "Boosts the lows only on strong hits." },
+        { "Limpo (vazio)", "Clean (empty)", "No bands." },
+        { "Corte de rumble", "Rumble cut", "Removes inaudible sub-lows." },
+        { "Brickwall 20 Hz – 20 kHz", "Brickwall 20 Hz – 20 kHz", "Limits the band to the audible range." },
+        { "Graves mono (M/S)", "Mono lows (M/S)", "Clean sides below 150 Hz." },
+        { "Notch 50 Hz (zumbido)", "Notch 50 Hz (hum)", "Removes electrical hum and harmonics." },
+        { "Notch 60 Hz (zumbido)", "Notch 60 Hz (hum)", "For 60 Hz equipment." } };
+    const char* const kFolders[][2] = { { "Voz", "Vocals" }, { "Bateria", "Drums" }, { "Baixo", "Bass" }, { "Mix Bus", "Mix Bus" }, { "Mastering", "Mastering" }, { "De-Resonance", "De-Resonance" }, { "De-Ess", "De-Ess" }, { "Unmask", "Unmask" }, { "Criativo", "Creative" }, { "Utilitário", "Utility" }, { "Os meus presets", "My presets" } };
+    bool english() { return ! piradex::i18n::isPortuguese(); }
+}
+
+juce::String displayName (const juce::String& storedName)
+{
+    if (english())
+        for (auto& e : kEnglish)
+            if (storedName == juce::String::fromUTF8 (e.pt)) return juce::String::fromUTF8 (e.name);
+    return storedName;
+}
+
+juce::String displayDescription (const FactoryPreset& p)
+{
+    if (english())
+        for (auto& e : kEnglish)
+            if (p.name == juce::String::fromUTF8 (e.pt)) return juce::String::fromUTF8 (e.desc);
+    return p.description;
+}
+
+juce::String displayFolder (const juce::String& folder)
+{
+    if (english())
+        for (auto& f : kFolders)
+            if (folder == juce::String::fromUTF8 (f[0])) return juce::String::fromUTF8 (f[1]);
+    return folder;
 }
 
 const std::vector<FactoryPreset>& factory()

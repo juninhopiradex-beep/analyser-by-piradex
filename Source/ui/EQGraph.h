@@ -99,6 +99,7 @@ private:
     std::vector<Start> starts;
     std::vector<juce::RangedAudioParameter*> gestureParams;
     double panLo = 0, panHi = 0;
+    piradex::i18n::Binder lang;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (EQGraph)
 };

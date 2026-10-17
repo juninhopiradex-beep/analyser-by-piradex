@@ -9,6 +9,21 @@ public:
     explicit SmartOpsPanel (EQMotionProcessor& p) : proc (p)
     {
         for (int i = 0; i < (int) eqm::SmartOp::NumOps; ++i) op.addItem (juce::String::fromUTF8 (eqm::smartOpName ((eqm::SmartOp) i)), i + 1);
+        lang.bind ([this]
+        {
+            for (int i = 0; i < (int) eqm::SmartOp::NumOps; ++i) op.changeItemText (i + 1, juce::String::fromUTF8 (eqm::smartOpName ((eqm::SmartOp) i)));
+            reference.setTooltip (tr ("De onde vem a referência: entrada sidechain ou o espetro médio de outra instância do EQMotion",
+                                      "Where the reference comes from: the sidechain input or the average spectrum of another EQMotion instance"));
+            revert.setTooltip (tr ("Remove só as bandas criadas pela última operação — as suas outras edições ficam",
+                                   "Removes only the bands created by the last operation — your other edits stay"));
+            from.setLabel (tr ("De", "From"));
+            to.setLabel (tr ("Até", "To"));
+            amount.setLabel (tr ("Intensidade", "Amount"));
+            apply.setButtonText (tr ("Aplicar", "Apply"));
+            revert.setButtonText (tr ("Reverter", "Revert"));
+            refIds.clear();          // reconstrói a lista de referências no idioma novo
+        });
+        lang.onChange = [this] { proc.smartRecompute(); refresh(); };
         op.onChange = [this] { proc.smartSetOp ((eqm::SmartOp) (op.getSelectedId() - 1)); refresh(); };
         addAndMakeVisible (op);
 
@@ -32,7 +47,6 @@ public:
             proc.smart.referenceInstance = refIds[(size_t) juce::jmax (0, reference.getSelectedItemIndex())];
             proc.smartRecompute();
         };
-        reference.setTooltip (juce::String::fromUTF8 ("De onde vem a referência: entrada sidechain ou o espetro médio de outra instância do EQMotion"));
         addAndMakeVisible (reference);
 
         learn.getProperties().set ("radius", 7.0f);
@@ -46,7 +60,6 @@ public:
         apply.getProperties().set ("primary", true);
         apply.onClick = [this] { proc.smartApply(); refresh(); };
         revert.onClick = [this] { proc.smartRevert(); refresh(); };
-        revert.setTooltip (juce::String::fromUTF8 ("Remove só as bandas criadas pela última operação — as suas outras edições ficam"));
         addAndMakeVisible (apply); addAndMakeVisible (revert);
 
         close.onClick = [this] { if (onClose) onClose(); };
@@ -68,7 +81,7 @@ public:
         reference.setVisible (isMatch);
         if (isMatch) rebuildReferences();
         const double secs = s.learning ? proc.smartLearnSeconds() : 0.0;
-        learn.setButtonText (s.learning ? juce::String::fromUTF8 ("Parar  ·  ") + juce::String (secs, 1).replace (".", ",") + " s" : juce::String ("Aprender"));
+        learn.setButtonText (s.learning ? tr ("Parar  ·  ", "Stop  ·  ") + decimal (secs, 1) + " s" : tr ("Aprender", "Learn"));
         learn.setToggleState (s.learning, juce::dontSendNotification);
         learn.setEnabled (! s.learning || secs >= 2.0);   // pelo menos 2 s
         apply.setEnabled (s.suggestion.ok && ! s.learning);
@@ -120,11 +133,11 @@ public:
         g.drawText ("Smart Ops", t.withTrimmedLeft (24), juce::Justification::centredLeft);
 
         auto& s = proc.smart;
-        drawStep (g, step1, 1, juce::String::fromUTF8 ("Operação"), true);
-        drawStep (g, step2, 2, "Intervalo e intensidade", true);
-        drawStep (g, step3, 3, "Aprender", s.learning || s.hasResult);
-        drawStep (g, step4, 4, "Rever", s.hasResult);
-        drawStep (g, step5, 5, "Aplicar", s.suggestion.ok);
+        drawStep (g, step1, 1, tr ("Operação", "Operation"), true);
+        drawStep (g, step2, 2, tr ("Intervalo e intensidade", "Range and amount"), true);
+        drawStep (g, step3, 3, tr ("Aprender", "Learn"), s.learning || s.hasResult);
+        drawStep (g, step4, 4, tr ("Rever", "Review"), s.hasResult);
+        drawStep (g, step5, 5, tr ("Aplicar", "Apply"), s.suggestion.ok);
 
         // progresso: barra até aos 2 s mínimos e depois contínua
         if (s.learning)
@@ -140,10 +153,10 @@ public:
         auto rv = review;
         juce::String status, detail;
         juce::Colour dot = pal::textFaint;
-        if (s.learning) { status = "A aprender"; detail = juce::String::fromUTF8 ("Ainda a mudar. Pare quando a passagem acabar (mínimo 2 s)."); dot = pal::accent; }
-        else if (s.suggestion.ok) { status = juce::String::fromUTF8 ("Sugestão: ") + juce::String ((int) s.suggestion.bands.size()) + ((int) s.suggestion.bands.size() == 1 ? " banda" : " bandas"); detail = s.message + juce::String::fromUTF8 ("\nTracejado no gráfico. O Amount ajusta a força em tempo real."); dot = pal::accent; }
-        else if (s.message.isNotEmpty()) { status = s.hasResult ? juce::String::fromUTF8 ("Sem alterações propostas") : juce::String ("Pronto"); detail = s.message; dot = s.hasResult ? pal::textDim : pal::ok; }
-        else { status = juce::String::fromUTF8 ("À espera"); detail = hint (s.op); }
+        if (s.learning) { status = tr ("A aprender", "Learning"); detail = tr ("Ainda a mudar. Pare quando a passagem acabar (mínimo 2 s).", "Still changing. Stop when the passage ends (minimum 2 s)."); dot = pal::accent; }
+        else if (s.suggestion.ok) { const int nb = (int) s.suggestion.bands.size(); status = tr ("Sugestão: ", "Suggestion: ") + juce::String (nb) + (nb == 1 ? tr (" banda", " band") : tr (" bandas", " bands")); detail = s.message + tr ("\nTracejado no gráfico. A Intensidade ajusta a força em tempo real.", "\nDashed on the graph. Amount adjusts the strength in real time."); dot = pal::accent; }
+        else if (s.message.isNotEmpty()) { status = s.hasResult ? tr ("Sem alterações propostas", "No changes proposed") : tr ("Pronto", "Ready"); detail = s.message; dot = s.hasResult ? pal::textDim : pal::ok; }
+        else { status = tr ("À espera", "Waiting"); detail = hint (s.op); }
         g.setColour (dot); g.fillEllipse ((float) rv.getX(), (float) rv.getY() + 5, 8, 8);
         g.setColour (pal::text); g.setFont (fonts::ui (13.5f, 2));
         g.drawText (status, rv.removeFromTop (18).withTrimmedLeft (16), juce::Justification::centredLeft);
@@ -156,12 +169,12 @@ private:
     {
         switch (op)
         {
-            case eqm::SmartOp::Deresonate:     return juce::String::fromUTF8 ("Encontra ressonâncias estreitas e persistentes e propõe cortes dinâmicos limitados.");
-            case eqm::SmartOp::DeEss:          return juce::String::fromUTF8 ("Procura a sibilância na zona escolhida e propõe 1–2 bandas dinâmicas.");
-            case eqm::SmartOp::AutoCut:        return juce::String::fromUTF8 ("Propõe cortes de graves/agudos onde só há ruído de fundo. Sub e ar musicais são protegidos.");
-            case eqm::SmartOp::MatchReference: return juce::String::fromUTF8 ("Toque este sinal e a referência (no sidechain, ou outra instância) e aprenda.");
-            case eqm::SmartOp::Unmask:         return juce::String::fromUTF8 ("Com a voz (ou outro sinal) no sidechain, abre espaço só quando ele toca.");
-            case eqm::SmartOp::TonalBalance:   return juce::String::fromUTF8 ("Compara com o equilíbrio médio de misturas e propõe correções largas e suaves (±4 dB).");
+            case eqm::SmartOp::Deresonate:     return tr ("Encontra ressonâncias estreitas e persistentes e propõe cortes dinâmicos limitados.", "Finds narrow, persistent resonances and proposes limited dynamic cuts.");
+            case eqm::SmartOp::DeEss:          return tr ("Procura a sibilância na zona escolhida e propõe 1–2 bandas dinâmicas.", "Looks for sibilance in the chosen range and proposes 1–2 dynamic bands.");
+            case eqm::SmartOp::AutoCut:        return tr ("Propõe cortes de graves/agudos onde só há ruído de fundo. Sub e ar musicais são protegidos.", "Proposes low/high cuts where there is only background noise. Musical sub and air are protected.");
+            case eqm::SmartOp::MatchReference: return tr ("Toque este sinal e a referência (no sidechain, ou outra instância) e aprenda.", "Play this signal and the reference (on the sidechain, or another instance) and learn.");
+            case eqm::SmartOp::Unmask:         return tr ("Com a voz (ou outro sinal) no sidechain, abre espaço só quando ele toca.", "With the vocal (or another signal) on the sidechain, makes room only while it plays.");
+            case eqm::SmartOp::TonalBalance:   return tr ("Compara com o equilíbrio médio de misturas e propõe correções largas e suaves (±4 dB).", "Compares with the average balance of mixes and proposes broad, gentle corrections (±4 dB).");
             default: return {};
         }
     }
@@ -171,7 +184,7 @@ private:
         juce::StringArray namesList { "Sidechain" };
         std::vector<int> ids { 0 };
         for (auto& inst : InstanceRegistry::get().all())
-            if (inst != proc.shared) { const juce::SpinLock::ScopedLockType lk (inst->lock); namesList.add (juce::String::fromUTF8 ("Instância: ") + inst->name); ids.push_back (inst->id); }
+            if (inst != proc.shared) { const juce::SpinLock::ScopedLockType lk (inst->lock); namesList.add (tr ("Instância: ", "Instance: ") + inst->name); ids.push_back (inst->id); }
         if (ids != refIds)
         {
             refIds = ids;
@@ -188,11 +201,13 @@ private:
     EQMotionProcessor& proc;
     juce::ComboBox op, reference;
     std::vector<int> refIds;
-    static juce::String hzText (double f) { return f >= 1000 ? juce::String (f / 1000.0, 1).replace (".", ",") + " kHz" : juce::String ((int) std::round (f)) + " Hz"; }
+    static juce::String decimal (double v, int d) { auto t = juce::String (v, d); return piradex::i18n::isPortuguese() ? t.replace (".", ",") : t; }
+    static juce::String hzText (double f) { return f >= 1000 ? decimal (f / 1000.0, 1) + " kHz" : juce::String ((int) std::round (f)) + " Hz"; }
     ValueBar from { "De", hzText }, to { juce::String::fromUTF8 ("Até"), hzText },
              amount { "Amount", [] (double v) { return juce::String ((int) std::round (v)) + " %"; } };
     juce::TextButton learn { "Aprender" }, apply { "Aplicar" }, revert { "Reverter" };
     IconButton close { "Fechar", [] { juce::Path p; p.startNewSubPath (0.25f, 0.25f); p.lineTo (0.75f, 0.75f); p.startNewSubPath (0.75f, 0.25f); p.lineTo (0.25f, 0.75f); return p; }() };
     juce::Rectangle<int> titleArea, step1, step2, step3, step4, step5, progress, review;
     int tick = 0;
+    piradex::i18n::Binder lang;
 };

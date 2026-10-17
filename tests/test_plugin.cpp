@@ -92,13 +92,58 @@ static void snapshot (EQMotionProcessor& p, const char* file, std::function<void
     // alimenta o analisador
     auto x = noise (48000, 11, 0.2);
     for (int k = 0; k < 6; ++k) { run (p, x); pump (60); }
+    namespace L = piradex::i18n;
+    auto save = [&] (const juce::String& name)
+    {
+        auto img = ed->createComponentSnapshot (ed->getLocalBounds(), true, 1.0f);
+        juce::File f (juce::File::getCurrentWorkingDirectory().getChildFile (name));
+        f.deleteFile();
+        juce::FileOutputStream os (f);
+        juce::PNGImageFormat().writeImageToStream (img, os);
+        std::printf ("  captura: %s\n", name.toRawUTF8());
+    };
+    L::set (L::Language::PT, false);
     pump (300);
-    auto img = ed->createComponentSnapshot (ed->getLocalBounds(), true, 1.0f);
-    juce::File f (juce::File::getCurrentWorkingDirectory().getChildFile (file));
-    f.deleteFile();
-    juce::FileOutputStream os (f);
-    juce::PNGImageFormat().writeImageToStream (img, os);
-    std::printf ("  captura: %s\n", file);
+    save (file);
+    L::set (L::Language::EN, false);          // a mesma janela em inglês (troca em directo)
+    pump (200);
+    save (juce::String (file).replace (".png", "_en.png"));
+    L::set (L::Language::PT, false);
+    pump (60);
+}
+
+// Idioma PT/EN: tr(), aviso de troca, ficheiro Piradex, nomes de automação fixos
+static void testLanguage()
+{
+    namespace L = piradex::i18n;
+    std::printf ("Idioma PT/EN\n");
+    const auto before = L::current();
+    L::set (L::Language::PT, false);
+    check (L::tr ("Bandas", "Bands") == "Bandas", "tr devolve PT");
+    L::set (L::Language::EN, false);
+    check (L::tr ("Bandas", "Bands") == "Bands", "tr devolve EN");
+    check (presets::displayName (juce::String::fromUTF8 ("Voz clara")) == "Clear vocal", "nome de preset em inglês");
+    struct Count : L::Listener { int n = 0; void languageChanged() override { ++n; } } count;
+    L::addListener (&count);
+    L::set (L::Language::PT, false);
+    L::set (L::Language::PT, false);
+    L::removeListener (&count);
+    check (count.n == 1, "aviso de troca só quando muda", count.n, 1);
+    check (presets::displayName (juce::String::fromUTF8 ("Voz clara")) == juce::String::fromUTF8 ("Voz clara"), "nome de preset em português");
+    L::set (L::Language::EN, true);
+    L::set (L::Language::PT, false);
+    L::reload();
+    check (L::current() == L::Language::EN, "idioma guardado em Piradex.settings");
+    EQMotionProcessor p;
+    const auto name = p.apvts.getParameter (ids::output)->getName (64);
+    {
+        std::unique_ptr<juce::AudioProcessorEditor> ed (p.createEditor());
+        L::set (L::Language::PT, false); pump (40);
+        L::set (L::Language::EN, false); pump (40);
+    }
+    check (p.apvts.getParameter (ids::output)->getName (64) == name, "nomes de automação fixos");
+    L::set (before, true);
+    L::set (L::Language::PT, false);
 }
 
 // Sinal "tipo música": rosa (−4,5 dB/oct), bombo e notas sustentadas
@@ -187,6 +232,7 @@ int main()
     juce::ScopedJuceInitialiser_GUI gui;
     lic::License::get().unlockForTests();
     if (std::getenv ("EQM_CAPTURAS") != nullptr) return marketingCaptures();
+    testLanguage();
     const double fs = 48000;
 
     std::printf ("Transparência e precisão (Zero Latency)\n");
@@ -590,8 +636,14 @@ int main()
                 std::printf ("  captura: %s\n", file);
             };
             EQMLookAndFeel lf;
-            PresetBrowser pb (*sm); pb.setLookAndFeel (&lf); shot (pb, "docs/ui_presets.png"); pb.setLookAndFeel (nullptr);
-            SettingsPanel sp (*sm, [] (float) {}, [] (float) {}, 12.0f); sp.setLookAndFeel (&lf); shot (sp, "docs/ui_definicoes.png"); sp.setLookAndFeel (nullptr);
+            for (auto lg : { piradex::i18n::Language::PT, piradex::i18n::Language::EN })
+            {
+                piradex::i18n::set (lg, false);
+                const bool en = lg == piradex::i18n::Language::EN;
+                PresetBrowser pb (*sm); pb.setLookAndFeel (&lf); shot (pb, en ? "docs/ui_presets_en.png" : "docs/ui_presets.png"); pb.setLookAndFeel (nullptr);
+                SettingsPanel sp (*sm, [] (float) {}, [] (float) {}, 12.0f); sp.setLookAndFeel (&lf); shot (sp, en ? "docs/ui_definicoes_en.png" : "docs/ui_definicoes.png"); sp.setLookAndFeel (nullptr);
+            }
+            piradex::i18n::set (piradex::i18n::Language::PT, false);
         }
 
         lic::License::get().lock();

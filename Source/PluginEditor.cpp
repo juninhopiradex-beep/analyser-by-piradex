@@ -5,6 +5,7 @@ EQMotionEditor::EQMotionEditor (EQMotionProcessor& p)
 {
     setLookAndFeel (&lnf);
     juce::LookAndFeel::setDefaultLookAndFeel (&lnf);
+    piradex::i18n::reload();          // outro plugin Piradex pode ter mudado o idioma
 
     // preferências do analisador guardadas na sessão
     auto& ui = proc.uiState;
