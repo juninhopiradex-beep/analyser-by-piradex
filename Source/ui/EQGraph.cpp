@@ -34,7 +34,9 @@ EQGraph::EQGraph (EQMotionProcessor& p) : proc (p), st (p.state)
     });
     lang.onChange = [this] { repaint(); };
     dbManual = (float) (double) proc.uiState.getProperty ("dbRange", 12.0);
-    autoScale = (bool) proc.uiState.getProperty ("dbAuto", true);
+    // sessões antigas em que o utilizador escolheu uma escala fixa mantêm-na; as novas começam em Auto
+    autoScale = proc.uiState.hasProperty ("dbAuto") ? (bool) proc.uiState.getProperty ("dbAuto")
+                                                    : ! proc.uiState.hasProperty ("dbRange");
     bands = proc.currentBands();
     dbRangeVal = dbTarget = autoScale ? (peakGainDb() > kAutoUp ? 20.0f : 12.0f) : dbManual;
     viewLo = proc.uiState.getProperty ("viewLo", 10.0);

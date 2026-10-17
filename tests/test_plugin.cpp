@@ -228,6 +228,50 @@ static int marketingCaptures()
 }
 
 
+// Escala vertical automática do gráfico (2.0.1)
+static void testScale()
+{
+    std::printf ("Escala do gráfico (Auto ±12/±20)\n");
+    auto p = make();
+    std::unique_ptr<juce::AudioProcessorEditor> ed (p->createEditor());
+    auto& g = dynamic_cast<EQMotionEditor*> (ed.get())->getGraph();
+    ed->setSize (EQMotionEditor::kBaseW, EQMotionEditor::kBaseH);
+    check (g.isAutoScale(), "sessão nova começa em Auto", g.isAutoScale(), 1);
+    p->state.setBand (0, mk (FilterType::Bell, 1000, 6, 1.0));
+    pump (400);
+    check (std::abs (g.dbRange() - 12.0f) < 0.01f, "ganho +6 dB: ±12 dB", g.dbRange(), 12);
+    p->state.setBand (1, mk (FilterType::Bell, 3200, 15, 1.2));
+    pump (500);
+    check (std::abs (g.dbRange() - 20.0f) < 0.01f, "ganho +15 dB: sobe para ±20 dB", g.dbRange(), 20);
+    p->state.setBand (1, mk (FilterType::Bell, 3200, 10.5, 1.2));
+    pump (400);
+    check (std::abs (g.dbRange() - 20.0f) < 0.01f, "histerese: +10,5 dB fica em ±20 dB", g.dbRange(), 20);
+    p->state.setBand (1, mk (FilterType::Bell, 3200, -9, 1.2));
+    pump (500);
+    check (std::abs (g.dbRange() - 12.0f) < 0.01f, "abaixo de 9,5 dB volta a ±12 dB", g.dbRange(), 12);
+    p->state.setBand (2, mk (FilterType::LowCut, 80, 0, 0.7071, Slope::dB48));
+    pump (400);
+    check (std::abs (g.dbRange() - 12.0f) < 0.01f, "um corte (curva a -inf) não força ±20 dB", g.dbRange(), 12);
+    auto dyn = mk (FilterType::Bell, 250, -4, 1.0); dyn.dynamic = true; dyn.rangeDb = -9;
+    p->state.setBand (3, dyn);
+    pump (500);
+    check (std::abs (g.dbRange() - 20.0f) < 0.01f, "dinâmica -4 dB com range -9 dB (=-13): ±20 dB", g.dbRange(), 20);
+    g.setDbRange (16.0f);
+    pump (400);
+    check (! g.isAutoScale() && std::abs (g.dbRange() - 16.0f) < 0.01f, "knob manual ±16 dB desliga o Auto", g.dbRange(), 16);
+    g.setAutoScale (true);
+    pump (400);
+    check (g.isAutoScale() && std::abs (g.dbRange() - 20.0f) < 0.01f, "voltar ao Auto recalcula (±20 dB)", g.dbRange(), 20);
+    ed.reset();
+
+    // sessão antiga com escala fixa escolhida (sem a propriedade dbAuto) mantém a escolha
+    auto q = make();
+    q->uiState.setProperty ("dbRange", 24.0, nullptr);
+    std::unique_ptr<juce::AudioProcessorEditor> ed2 (q->createEditor());
+    auto& g2 = dynamic_cast<EQMotionEditor*> (ed2.get())->getGraph();
+    check (! g2.isAutoScale() && std::abs (g2.dbRange() - 24.0f) < 0.01f, "sessão antiga com ±24 dB fixo mantém-se", g2.dbRange(), 24);
+}
+
 // Capturas da escala vertical automática (EQM_ESCALA=1): mesmo projeto com ajuste suave e com um realce forte
 static int scaleCaptures()
 {
@@ -278,6 +322,7 @@ int main()
     if (std::getenv ("EQM_CAPTURAS") != nullptr) return marketingCaptures();
     if (std::getenv ("EQM_ESCALA") != nullptr) return scaleCaptures();
     testLanguage();
+    testScale();
     const double fs = 48000;
 
     std::printf ("Transparência e precisão (Zero Latency)\n");

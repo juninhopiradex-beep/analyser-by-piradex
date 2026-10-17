@@ -9,7 +9,7 @@ on:
 # Ramo "eqmotion" dentro de outro repo: release "eqmotion-vX" (sem passar a "Latest") + ramo "eqmotion-builds".
 
 env:
-  VERSAO: "2.0.0"
+  VERSAO: "2.0.1"
 
 jobs:
   testes:
@@ -258,7 +258,7 @@ jobs:
           echo "$FICHEIROS"
           gh release create "$TAG" $FICHEIROS -R "$GITHUB_REPOSITORY" \
             --latest=$LATEST --target "$GITHUB_SHA" --title "EQMotion by Piradex $VERSAO" \
-            --notes "Interface em Português e Inglês (seletor PT | EN). AAX (Pro Tools): ficheiros *-AAX-*.zip, ver LEIA-ME-AAX.txt. Equalizador dinâmico de 24 bandas. macOS 10.13+ (Intel e Apple Silicon): EQMotion-by-Piradex-$VERSAO-macOS.dmg · Windows 10/11 64 bits: EQMotion-by-Piradex-$VERSAO-Windows-Setup.exe (ou o .zip para instalação manual)."
+            --notes "Novo na 2.0.1: escala vertical do gráfico automática (±12 dB ↔ ±20 dB conforme os ganhos) e knob ESCALA + botão Auto na barra do analisador. Interface em Português e Inglês (seletor PT | EN). AAX (Pro Tools): ficheiros *-AAX-*.zip, ver LEIA-ME-AAX.txt. Equalizador dinâmico de 24 bandas. macOS 10.13+ (Intel e Apple Silicon): EQMotion-by-Piradex-$VERSAO-macOS.dmg · Windows 10/11 64 bits: EQMotion-by-Piradex-$VERSAO-Windows-Setup.exe (ou o .zip para instalação manual)."
 
       - name: Guardar binários num ramo próprio
         run: |

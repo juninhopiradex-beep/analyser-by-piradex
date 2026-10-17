@@ -1,7 +1,7 @@
 # EQMotion by Piradex
 
 **Um equalizador dinâmico que mostra o que está a fazer.**
-Versão **2.0.0** · VST3, Audio Unit e AAX para macOS (10.13+, Intel e Apple Silicon — corre num MacBook Pro 2013 com Catalina) e VST3 + AAX para Windows 10/11 64 bits · interface em **Português e Inglês**.
+Versão **2.0.1** · VST3, Audio Unit e AAX para macOS (10.13+, Intel e Apple Silicon — corre num MacBook Pro 2013 com Catalina) e VST3 + AAX para Windows 10/11 64 bits · interface em **Português e Inglês**.
 
 ![EQMotion](docs/ui_principal.png)
 
@@ -21,7 +21,7 @@ Versão **2.0.0** · VST3, Audio Unit e AAX para macOS (10.13+, Intel e Apple Si
 
 ## Downloads
 
-Cada push compila e valida no GitHub Actions (auval Intel + Apple Silicon, pluginval, testes de áudio) e publica a versão **EQMotion by Piradex 2.0.0** na página *Releases* (no repositório do ANALYSER: `eqmotion-v2.0.0`):
+Cada push compila e valida no GitHub Actions (auval Intel + Apple Silicon, pluginval, testes de áudio) e publica a versão **EQMotion by Piradex 2.0.1** na página *Releases* (no repositório do ANALYSER: `eqmotion-v2.0.1`):
 
 * `EQMotion-by-Piradex-<versão>-macOS.dmg` — instalador `.pkg` + plugins para instalação manual
 * `EQMotion-by-Piradex-<versão>-Windows-Setup.exe` — instalador (ou o `.zip` para copiar à mão)

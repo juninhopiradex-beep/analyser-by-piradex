@@ -1,8 +1,8 @@
 ; Instalador Windows do EQMotion by Piradex (Inno Setup 6)
-; Compilado no GitHub Actions: ISCC /DVersao=2.0.0 installer\windows.iss
+; Compilado no GitHub Actions: ISCC /DVersao=2.0.1 installer\windows.iss
 
 #ifndef Versao
-  #define Versao "2.0.0"
+  #define Versao "2.0.1"
 #endif
 
 [Setup]

@@ -28,6 +28,7 @@ Por baixo: **Entrada / Saída / Sidechain** escolhem os espetros mostrados, **Co
 * **Arrastar** um nó muda frequência e ganho (nos cortes, arrastar na vertical muda a ressonância). **Shift** = ajuste fino.
 * **Roda do rato** sobre um nó ou **Alt + arrastar** muda o Q.
 * **Duplo clique num nó** apaga a banda. **Shift + clique** seleciona várias (arrastam juntas).
+* **Escala do gráfico** (barra do analisador, à direita): knob **ESCALA** de ±12 a ±20 dB e botão **Auto**. Em Auto a escala passa sozinha a ±20 dB quando algum ganho (incluindo o alcance da dinâmica e a Escala global) passa dos 11 dB, e volta a ±12 dB abaixo de 9,5 dB; durante um arrasto não muda, só quando larga o nó. Rodar o knob desliga o Auto; duplo clique no knob volta ao Auto. Também no botão direito e nas Definições (Automática, ±3 a ±30 dB). Só muda o desenho, nunca o som.
 * **Botão direito** num nó: tipo, inclinação, colocação, dinâmica, Listen, bypass, copiar/colar, repor, remover. Num sítio vazio: colar, escala do gráfico, repor zoom, limpar tudo.
 * **Cmd/Ctrl + roda** faz zoom horizontal; com zoom, **arrastar o fundo** desloca. Com zoom grande aparecem os nomes das notas. O cursor mostra Hz, nota e dB.
 * Teclado: ← → frequência (Shift: fino), ↑ ↓ ganho, Tab muda de banda, Delete apaga, Cmd/Ctrl+C/V copia/cola (também entre instâncias).
