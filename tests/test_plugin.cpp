@@ -55,17 +55,62 @@ static void snapshot (CurveAnalyzerProcessor& p, const char* file, int view = 0)
     std::unique_ptr<juce::AudioProcessorEditor> ed (p.createEditor());
     ed->setSize (1280, 740);
     pump (350);
-    auto img = ed->createComponentSnapshot (ed->getLocalBounds(), true, 1.0f);
-    juce::File f (juce::File::getCurrentWorkingDirectory().getChildFile (file));
-    f.deleteFile();
-    juce::FileOutputStream out (f);
-    juce::PNGImageFormat().writeImageToStream (img, out);
-    std::printf ("  captura: %s\n", file);
+    auto save = [&] (const juce::String& name)
+    {
+        auto img = ed->createComponentSnapshot (ed->getLocalBounds(), true, 1.0f);
+        juce::File f (juce::File::getCurrentWorkingDirectory().getChildFile (name));
+        f.deleteFile();
+        juce::FileOutputStream out (f);
+        juce::PNGImageFormat().writeImageToStream (img, out);
+        std::printf ("  captura: %s\n", name.toRawUTF8());
+    };
+    namespace L = piradex::i18n;
+    L::set (L::Language::PT, false);
+    pump (60);
+    save (file);
+    // a mesma janela em inglês (troca em directo)
+    L::set (L::Language::EN, false);
+    pump (120);
+    save (juce::String (file).replace (".png", "_en.png"));
+    L::set (L::Language::PT, false);
+}
+
+// Idioma PT/EN: tr(), aviso de troca, ficheiro Piradex, nomes de automação fixos
+static void testLanguage()
+{
+    namespace L = piradex::i18n;
+    std::printf ("[idioma PT/EN]\n");
+    const auto before = L::current();
+    L::set (L::Language::PT, false);
+    check (L::tr ("Grupo", "Group") == "Grupo", "tr devolve PT", 1, 1);
+    L::set (L::Language::EN, false);
+    check (L::tr ("Grupo", "Group") == "Group", "tr devolve EN", 1, 1);
+    struct Count : L::Listener { int n = 0; void languageChanged() override { ++n; } } count;
+    L::addListener (&count);
+    L::set (L::Language::PT, false);
+    L::set (L::Language::PT, false);
+    L::removeListener (&count);
+    check (count.n == 1, "aviso de troca so quando muda", count.n, 1);
+    L::set (L::Language::EN, true);
+    L::set (L::Language::PT, false);
+    L::reload();
+    check (L::current() == L::Language::EN, "idioma guardado em Piradex.settings", (int) L::current(), 1);
+    CurveAnalyzerProcessor p;
+    const auto name = p.apvts.getParameter (ids::level)->getName (64);
+    {
+        std::unique_ptr<juce::AudioProcessorEditor> ed (p.createEditor());
+        L::set (L::Language::PT, false); pump (40);
+        L::set (L::Language::EN, false); pump (40);
+    }
+    check (p.apvts.getParameter (ids::level)->getName (64) == name, "nomes de automacao fixos", 1, 1);
+    L::set (before, true);
+    L::set (L::Language::PT, false);
 }
 
 int main()
 {
     juce::ScopedJuceInitialiser_GUI init;
+    testLanguage();
     const double fs = 48000.0;
     const int bs = 512;
     juce::MidiBuffer midi;

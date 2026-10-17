@@ -2,6 +2,7 @@
 
 using View = AnalysisResults::View;
 static juce::String U (const char* s) { return juce::String::fromUTF8 (s); }
+using piradex::i18n::tr;
 
 static juce::String hzText (double f)
 {
@@ -13,10 +14,10 @@ static juce::String signalName (pca::Signal s)
 {
     switch (s)
     {
-        case pca::Signal::Impulse:   return "Impulso";
-        case pca::Signal::LogSweep:  return "Sweep log";
-        case pca::Signal::PinkNoise: return U ("Ruído rosa");
-        case pca::Signal::Sine:      return "Seno";
+        case pca::Signal::Impulse:   return tr ("Impulso", "Impulse");
+        case pca::Signal::LogSweep:  return tr ("Sweep log", "Log sweep");
+        case pca::Signal::PinkNoise: return tr ("Ruído rosa", "Pink noise");
+        case pca::Signal::Sine:      return tr ("Seno", "Sine");
     }
     return {};
 }
@@ -119,8 +120,12 @@ void PxLookAndFeel::drawLinearSlider (juce::Graphics& g, int x, int y, int w, in
 // =============================================================================
 GraphView::GraphView (CurveAnalyzerProcessor& p) : proc (p)
 {
-    hostAction.setButtonText (U ("MODO HOST (1 INSTÂNCIA)"));
-    musicAction.setButtonText (U ("MÚSICA COM SIDECHAIN"));
+    lang.bind ([this]
+    {
+        hostAction.setButtonText (tr ("MODO HOST (1 INSTÂNCIA)", "HOST MODE (1 INSTANCE)"));
+        musicAction.setButtonText (tr ("MÚSICA COM SIDECHAIN", "MUSIC WITH SIDECHAIN"));
+    });
+    lang.onChange = [this] { repaint(); };
     hostAction.setToggleState (true, juce::dontSendNotification);   // contorno verde
     hostAction.onClick  = [this] { if (onAction) onAction (1); };
     musicAction.onClick = [this] { if (onAction) onAction (2); };
@@ -263,44 +268,58 @@ bool GraphView::drawWaitingIfNeeded (juce::Graphics& g)
 {
     if (res.sidechainMissing)
     {
-        drawMessage (g, U ("Sidechain inativo"),
-                     U ("Ative o sidechain desta instância e envie para ele o sinal ORIGINAL (antes do plugin/hardware). "
-                        "A entrada principal deve receber o sinal processado. Ou use o modo HOST."));
+        drawMessage (g, tr ("Sidechain inativo", "Sidechain inactive"),
+                     tr ("Ative o sidechain desta instância e envie para ele o sinal ORIGINAL (antes do plugin/hardware). "
+                         "A entrada principal deve receber o sinal processado. Ou use o modo HOST.",
+                         "Activate this instance's sidechain and send it the ORIGINAL signal (before the plugin/hardware). "
+                         "The main input must receive the processed signal. Or use HOST mode."));
         return true;
     }
     if (res.notTestSignal)
     {
         if (res.hostMode)
-            drawMessage (g, U ("A saída do plugin está sempre a mudar"),
-                         U ("O plugin carregado varia no tempo (modulação, chorus, compressor a mexer…). "
-                            "Use Fonte = Música ou Média 16 ou mais."));
+            drawMessage (g, tr ("A saída do plugin está sempre a mudar", "The plugin output keeps changing"),
+                         tr ("O plugin carregado varia no tempo (modulação, chorus, compressor a mexer…). "
+                             "Use Fonte = Música ou Média 16 ou mais.",
+                             "The loaded plugin varies over time (modulation, chorus, a moving compressor…). "
+                             "Use Source = Music or Average 16 or more."));
         else if (res.linked)
-            drawMessage (g, U ("Isto não é o sinal do Gerador"),
-                         U ("O Gerador do grupo está ligado, mas o que chega aqui é outro som. "
-                            "O Gerador tem de estar NA MESMA FAIXA, antes do plugin, e o Analisador depois dele."));
+            drawMessage (g, tr ("Isto não é o sinal do Gerador", "This is not the Generator signal"),
+                         tr ("O Gerador do grupo está ligado, mas o que chega aqui é outro som. "
+                             "O Gerador tem de estar NA MESMA FAIXA, antes do plugin, e o Analisador depois dele.",
+                             "The group's Generator is linked, but a different sound is arriving here. "
+                             "The Generator must be ON THE SAME TRACK, before the plugin, and the Analyser after it."));
         else
-            drawMessage (g, U ("Isto é música, não o sinal de teste"),
-                         U ("Para ver a curva de um plugin com música use um dos modos abaixo. Para medir com sinal de teste: "
-                            "ANALYSER em GERADOR antes do plugin e outro ANALYSER em ANALISADOR depois (mesmo Grupo)."),
+            drawMessage (g, tr ("Isto é música, não o sinal de teste", "This is music, not the test signal"),
+                         tr ("Para ver a curva de um plugin com música use um dos modos abaixo. Para medir com sinal de teste: "
+                             "ANALYSER em GERADOR antes do plugin e outro ANALYSER em ANALISADOR depois (mesmo Grupo).",
+                             "To see a plugin's curve with music use one of the modes below. To measure with a test signal: "
+                             "ANALYSER as GENERATOR before the plugin and another ANALYSER as ANALYSER after it (same Group)."),
                          190.0f);
         return true;
     }
     if (res.hasSignal) return false;
     if (res.hostMode && ! res.hostLoaded)
-        drawMessage (g, U ("Modo HOST — carregue um plugin"),
-                     U ("Clique em CARREGAR PLUGIN, escolha o seu EQ, compressor ou saturador e depois ABRIR PLUGIN. "
-                        "Mexa nos botões dele e veja a curva mudar aqui."));
+        drawMessage (g, tr ("Modo HOST — carregue um plugin", "HOST mode — load a plugin"),
+                     tr ("Clique em CARREGAR PLUGIN, escolha o seu EQ, compressor ou saturador e depois ABRIR PLUGIN. "
+                         "Mexa nos botões dele e veja a curva mudar aqui.",
+                         "Click LOAD PLUGIN, choose your EQ, compressor or saturator, then OPEN PLUGIN. "
+                         "Move its controls and watch the curve change here."));
     else if (res.view == View::Music)
-        drawMessage (g, U ("À espera de música…"), res.hostMode ? U ("Reproduza a faixa: a música passa pelo plugin carregado.")
-                                                                : U ("Reproduza a sessão: o sidechain recebe o dry e a entrada o wet."));
+        drawMessage (g, tr ("À espera de música…", "Waiting for music…"), res.hostMode ? tr ("Reproduza a faixa: a música passa pelo plugin carregado.", "Play the track: the music goes through the loaded plugin.")
+                                                                : tr ("Reproduza a sessão: o sidechain recebe o dry e a entrada o wet.", "Play the session: the sidechain receives the dry and the input the wet."));
     else if (res.view == View::Harmonics)
-        drawMessage (g, U ("À espera do seno de teste…"),
-                     U ("Gerador em \"Seno (harmónicos)\" antes do plugin/equipamento, Analisador depois. "
-                        "Suba o Nível no Gerador para levar o equipamento à saturação."));
+        drawMessage (g, tr ("À espera do seno de teste…", "Waiting for the test sine…"),
+                     tr ("Gerador em \"Seno (harmónicos)\" antes do plugin/equipamento, Analisador depois. "
+                         "Suba o Nível no Gerador para levar o equipamento à saturação.",
+                         "Generator on \"Sine (harmonics)\" before the plugin/hardware, Analyser after it. "
+                         "Raise the Generator Level to drive the hardware into saturation."));
     else
-        drawMessage (g, U ("À espera do sinal de teste…"),
-                     U ("[ANALYSER: GERADOR] → [o seu plugin] → [ANALYSER: ANALISADOR], no mesmo Grupo. "
-                        "Reproduza ou monitorize a faixa. Ou use o modo HOST com uma só instância."));
+        drawMessage (g, tr ("À espera do sinal de teste…", "Waiting for the test signal…"),
+                     tr ("[ANALYSER: GERADOR] → [o seu plugin] → [ANALYSER: ANALISADOR], no mesmo Grupo. "
+                         "Reproduza ou monitorize a faixa. Ou use o modo HOST com uma só instância.",
+                         "[ANALYSER: GENERATOR] → [your plugin] → [ANALYSER: ANALYSER], in the same Group. "
+                         "Play or monitor the track. Or use HOST mode with a single instance."));
     return true;
 }
 
@@ -312,7 +331,7 @@ void GraphView::paint (juce::Graphics& g)
     const bool sweepTab = tab == ViewTab::Sweep && (res.view == View::Harmonics || res.view == View::Response
                                                     || res.sweepShownKind != 0);
     if (res.view == View::Generator)          { drawFreqGrid (g); drawGenerator (g); }
-    else if (res.view == View::None)          { drawFreqGrid (g); drawMessage (g, U ("A iniciar…"), U ("A aguardar o primeiro bloco de áudio do host.")); }
+    else if (res.view == View::None)          { drawFreqGrid (g); drawMessage (g, tr ("A iniciar…", "Starting…"), tr ("A aguardar o primeiro bloco de áudio do host.", "Waiting for the first audio block from the host.")); }
     else if (sweepTab)                        drawSweep (g);
     else if (tab == ViewTab::Wave)            drawWave (g);
     else if (tab == ViewTab::Spectrum && res.view == View::Music) { drawFreqGrid (g); drawSpectrum (g); }
@@ -327,15 +346,15 @@ void GraphView::drawGenerator (juce::Graphics& g)
 {
     const auto& s = res.spec;
     const double ms = s.fs > 0 ? 1000.0 * s.N / s.fs : 0.0;
-    juce::String sub = U ("Sinal: ") + signalName (s.signal)
+    juce::String sub = tr ("Sinal: ", "Signal: ") + signalName (s.signal)
                      + (s.signal == pca::Signal::Sine ? " " + hzText (s.sineHz) : juce::String())
-                     + U (" · Nível: ") + juce::String (s.levelDb, 1) + U (" dBFS · Período: ")
-                     + juce::String (s.N) + U (" amostras (") + juce::String (juce::roundToInt (ms)) + " ms)\n"
-                     + U ("Cadeia: [Gerador] → [plugin ou insert de hardware] → [Analisador, mesmo grupo]");
+                     + tr (" · Nível: ", " · Level: ") + juce::String (s.levelDb, 1) + tr (" dBFS · Período: ", " dBFS · Period: ")
+                     + juce::String (s.N) + tr (" amostras (", " samples (") + juce::String (juce::roundToInt (ms)) + " ms)\n"
+                     + tr ("Cadeia: [Gerador] → [plugin ou insert de hardware] → [Analisador, mesmo grupo]", "Chain: [Generator] → [plugin or hardware insert] → [Analyser, same group]");
     if (res.sweepKind != 0)
-        sub = U ("A executar varrimento de ") + (res.sweepKind == 1 ? U ("nível") : U ("frequência"))
-            + U (" — passo ") + juce::String (res.sweepStep + 1) + " / " + juce::String (res.sweepTotal) + "\n" + sub;
-    drawMessage (g, U ("MODO GERADOR — a emitir sinal de teste"), sub);
+        sub = tr ("A executar varrimento de ", "Running ") + (res.sweepKind == 1 ? tr ("nível", "level") : tr ("frequência", "frequency"))
+            + tr (" — passo ", " sweep — step ") + juce::String (res.sweepStep + 1) + " / " + juce::String (res.sweepTotal) + "\n" + sub;
+    drawMessage (g, tr ("MODO GERADOR — a emitir sinal de teste", "GENERATOR MODE — sending test signal"), sub);
 }
 
 void GraphView::drawResponse (juce::Graphics& g)
@@ -382,7 +401,7 @@ void GraphView::drawResponse (juce::Graphics& g)
         g.setColour (juce::Colour (0xff6d6d6d));
         g.strokePath (cp, juce::PathStrokeType (1.0f));
         g.setFont (juce::Font (juce::FontOptions (11.5f)));
-        g.drawText (U ("coerência"), juce::Rectangle<float> (p.getX() + 6.0f, p.getBottom() - p.getHeight() * 0.18f - 16.0f, 100.0f, 14.0f),
+        g.drawText (tr ("coerência", "coherence"), juce::Rectangle<float> (p.getX() + 6.0f, p.getBottom() - p.getHeight() * 0.18f - 16.0f, 100.0f, 14.0f),
                     juce::Justification::centredLeft);
     }
 
@@ -413,8 +432,8 @@ void GraphView::drawResponse (juce::Graphics& g)
         if (shown.valid[best])
         {
             juce::String t = juce::String (juce::roundToInt (f)) + " Hz, " + juce::String (shown.magDb[best], 1) + " dB";
-            if (showPhase) t << ", " << juce::roundToInt (shown.phaseDeg[best]) << U (" graus");
-            if (res.view == View::Music) t << U (", coer. ") << juce::String (shown.coh[best], 2);
+            if (showPhase) t << ", " << juce::roundToInt (shown.phaseDeg[best]) << tr (" graus", " deg");
+            if (res.view == View::Music) t << tr (", coer. ", ", coh. ") << juce::String (shown.coh[best], 2);
             drawReadout (g, t);
         }
     }
@@ -484,7 +503,7 @@ void GraphView::drawHarmonics (juce::Graphics& g)
     auto in = box.reduced (12.0f, 8.0f);
     g.setColour (pxcol::text);
     g.setFont (juce::Font (juce::FontOptions (13.0f, juce::Font::bold)));
-    g.drawText (U ("HARMÓNICOS (dBc)  f0 ") + hzText (h.f0), in.removeFromTop (22.0f), juce::Justification::centredLeft);
+    g.drawText (tr ("HARMÓNICOS (dBc)  f0 ", "HARMONICS (dBc)  f0 ") + hzText (h.f0), in.removeFromTop (22.0f), juce::Justification::centredLeft);
     g.setFont (juce::Font (juce::FontOptions (12.5f)));
     for (int k = 2; k <= pca::HarmonicResult::kMaxH; ++k)
     {
@@ -511,15 +530,15 @@ void GraphView::drawHarmonics (juce::Graphics& g)
     };
     line ("THD", juce::String (h.thdPct, h.thdPct < 0.1 ? 4 : 3) + " %");
     line ("THD+N", juce::String (h.thdnPct, h.thdnPct < 0.1 ? 4 : 3) + " %");
-    line (U ("Pares (H2,H4…)"), juce::String (h.evenDb, 1) + " dBc", pxcol::even);
-    line (U ("Ímpares (H3,H5…)"), juce::String (h.oddDb, 1) + " dBc", pxcol::odd);
-    line ("Ganho (fundamental)", (h.gainDb >= 0 ? "+" : "") + juce::String (h.gainDb, 2) + " dB");
-    line (U ("Piso de ruído"), h.noiseFloorDb < -160.0 ? U ("< -160 dBFS") : juce::String (h.noiseFloorDb, 1) + " dBFS");
+    line (tr ("Pares (H2,H4…)", "Even (H2,H4…)"), juce::String (h.evenDb, 1) + " dBc", pxcol::even);
+    line (tr ("Ímpares (H3,H5…)", "Odd (H3,H5…)"), juce::String (h.oddDb, 1) + " dBc", pxcol::odd);
+    line (tr ("Ganho (fundamental)", "Gain (fundamental)"), (h.gainDb >= 0 ? "+" : "") + juce::String (h.gainDb, 2) + " dB");
+    line (tr ("Piso de ruído", "Noise floor"), h.noiseFloorDb < -160.0 ? U ("< -160 dBFS") : juce::String (h.noiseFloorDb, 1) + " dBFS");
     juce::String character;
-    if (h.thdPct < 0.001)                character = U ("Linear (sem coloração)");
-    else if (h.evenDb > h.oddDb + 3.0)   character = U ("Pares dominam: quente (válvula/fita)");
-    else if (h.oddDb > h.evenDb + 3.0)   character = U ("Ímpares dominam: transístor/clip");
-    else                                 character = U ("Pares e ímpares equilibrados");
+    if (h.thdPct < 0.001)                character = tr ("Linear (sem coloração)", "Linear (no colouration)");
+    else if (h.evenDb > h.oddDb + 3.0)   character = tr ("Pares dominam: quente (válvula/fita)", "Even dominate: warm (tube/tape)");
+    else if (h.oddDb > h.evenDb + 3.0)   character = tr ("Ímpares dominam: transístor/clip", "Odd dominate: transistor/clip");
+    else                                 character = tr ("Pares e ímpares equilibrados", "Even and odd balanced");
     g.setColour (pxcol::green);
     g.drawText (character, in.removeFromTop (18.0f), juce::Justification::centredLeft);
 
@@ -610,14 +629,14 @@ void GraphView::drawWave (juce::Graphics& g)
     if (ir)
     {
         g.setColour (pxcol::green);
-        g.drawText (U ("RESPOSTA IMPULSIONAL (0 ms = pico, latência removida)"), leg, juce::Justification::centredLeft);
+        g.drawText (tr ("RESPOSTA IMPULSIONAL (0 ms = pico, latência removida)", "IMPULSE RESPONSE (0 ms = peak, latency removed)"), leg, juce::Justification::centredLeft);
     }
     else
     {
         g.setColour (juce::Colour (0xff8a8a8a));
-        g.drawText (harm ? U ("— entrada (seno puro)") : U ("— antes (dry)"), leg, juce::Justification::centredLeft);
+        g.drawText (harm ? tr ("— entrada (seno puro)", "— input (pure sine)") : tr ("— antes (dry)", "— before (dry)"), leg, juce::Justification::centredLeft);
         g.setColour (pxcol::green);
-        g.drawText (harm ? U ("— saída do plugin/equipamento") : U ("— depois (wet)"), leg.translated (0.0f, 18.0f), juce::Justification::centredLeft);
+        g.drawText (harm ? tr ("— saída do plugin/equipamento", "— plugin/hardware output") : tr ("— depois (wet)", "— after (wet)"), leg.translated (0.0f, 18.0f), juce::Justification::centredLeft);
     }
 
     if (harm && res.waveIn.size() == res.waveOut.size() && ! res.waveIn.empty())
@@ -649,7 +668,7 @@ void GraphView::drawWave (juce::Graphics& g)
         g.drawRect (inset, 1.0f);
         g.setColour (pxcol::dim);
         g.setFont (juce::Font (juce::FontOptions (12.0f)));
-        g.drawText (U ("Curva de transferência (entrada → saída)"), inset.withHeight (18.0f).translated (0.0f, inset.getHeight() + 4.0f),
+        g.drawText (tr ("Curva de transferência (entrada → saída)", "Transfer curve (input → output)"), inset.withHeight (18.0f).translated (0.0f, inset.getHeight() + 4.0f),
                     juce::Justification::centred);
     }
 }
@@ -689,9 +708,9 @@ void GraphView::drawSpectrum (juce::Graphics& g)
     g.setFont (juce::Font (juce::FontOptions (13.0f, juce::Font::bold)));
     auto leg = juce::Rectangle<float> (p.getX() + 12.0f, p.getY() + 10.0f, 300.0f, 18.0f);
     g.setColour (juce::Colour (0xff9a9a9a));
-    g.drawText (U ("— antes (dry)"), leg, juce::Justification::centredLeft);
+    g.drawText (tr ("— antes (dry)", "— before (dry)"), leg, juce::Justification::centredLeft);
     g.setColour (pxcol::green);
-    g.drawText (U ("— depois (wet)"), leg.translated (0.0f, 18.0f), juce::Justification::centredLeft);
+    g.drawText (tr ("— depois (wet)", "— after (wet)"), leg.translated (0.0f, 18.0f), juce::Justification::centredLeft);
 
     if (hovering && p.contains (hover) && ! res.specWet.empty())
     {
@@ -702,8 +721,8 @@ void GraphView::drawSpectrum (juce::Graphics& g)
         if (res.specWet.valid[best] && res.specDry.valid[best])
         {
             const float d = res.specWet.magDb[best] - res.specDry.magDb[best];
-            drawReadout (g, juce::String (juce::roundToInt (f)) + " Hz, antes " + juce::String (res.specDry.magDb[best], 1)
-                          + " / depois " + juce::String (res.specWet.magDb[best], 1) + " dB (" + (d >= 0 ? "+" : "") + juce::String (d, 1) + ")");
+            drawReadout (g, juce::String (juce::roundToInt (f)) + tr (" Hz, antes ", " Hz, before ") + juce::String (res.specDry.magDb[best], 1)
+                          + tr (" / depois ", " / after ") + juce::String (res.specWet.magDb[best], 1) + " dB (" + (d >= 0 ? "+" : "") + juce::String (d, 1) + ")");
         }
     }
 }
@@ -757,10 +776,12 @@ void GraphView::drawSweep (juce::Graphics& g)
     if (! any)
     {
         const bool canRun = res.hostMode || res.linked;
-        drawMessage (g, res.sweepKind != 0 ? U ("A preparar o varrimento…") : U ("Varrimento automático de THD"),
-                     canRun ? U ("VARRER NÍVEL: seno de -42 a 0 dBFS, mostra onde o equipamento começa a saturar. "
-                                 "VARRER FREQUÊNCIA: THD de 31 Hz a 10 kHz ao nível escolhido.")
-                            : U ("Precisa de um Gerador ligado no mesmo grupo (ou do modo HOST)."));
+        drawMessage (g, res.sweepKind != 0 ? tr ("A preparar o varrimento…", "Preparing the sweep…") : tr ("Varrimento automático de THD", "Automatic THD sweep"),
+                     canRun ? tr ("VARRER NÍVEL: seno de -42 a 0 dBFS, mostra onde o equipamento começa a saturar. "
+                                  "VARRER FREQUÊNCIA: THD de 31 Hz a 10 kHz ao nível escolhido.",
+                                  "SWEEP LEVEL: sine from -42 to 0 dBFS, shows where the hardware starts to saturate. "
+                                  "SWEEP FREQ.: THD from 31 Hz to 10 kHz at the chosen level.")
+                            : tr ("Precisa de um Gerador ligado no mesmo grupo (ou do modo HOST).", "Needs a Generator linked in the same group (or HOST mode)."));
         return;
     }
 
@@ -791,13 +812,13 @@ void GraphView::drawSweep (juce::Graphics& g)
     g.setColour (pxcol::green);  g.drawText ("THD", leg, juce::Justification::centredLeft);
     g.setColour (pxcol::even);   g.drawText ("H2", leg.translated (52.0f, 0.0f), juce::Justification::centredLeft);
     g.setColour (pxcol::odd);    g.drawText ("H3", leg.translated (92.0f, 0.0f), juce::Justification::centredLeft);
-    g.setColour (pxcol::purple); g.drawText ("Ganho", leg.translated (132.0f, 0.0f), juce::Justification::centredLeft);
+    g.setColour (pxcol::purple); g.drawText (tr ("Ganho", "Gain"), leg.translated (132.0f, 0.0f), juce::Justification::centredLeft);
     g.setColour (pxcol::text);
-    g.drawText (byLevel ? U ("THD vs NÍVEL de entrada") : U ("THD vs FREQUÊNCIA"), leg.translated (0.0f, 20.0f), juce::Justification::centredLeft);
+    g.drawText (byLevel ? tr ("THD vs NÍVEL de entrada", "THD vs input LEVEL") : tr ("THD vs FREQUÊNCIA", "THD vs FREQUENCY"), leg.translated (0.0f, 20.0f), juce::Justification::centredLeft);
     if (res.sweepKind != 0)
     {
         g.setColour (pxcol::even);
-        g.drawText (U ("A varrer… passo ") + juce::String (res.sweepStep + 1) + " / " + juce::String (res.sweepTotal),
+        g.drawText (tr ("A varrer… passo ", "Sweeping… step ") + juce::String (res.sweepStep + 1) + " / " + juce::String (res.sweepTotal),
                     leg.translated (0.0f, 40.0f), juce::Justification::centredLeft);
     }
 
@@ -811,7 +832,7 @@ void GraphView::drawSweep (juce::Graphics& g)
             drawReadout (g, (byLevel ? juce::String (best->x, 0) + " dBFS" : hzText (best->x))
                           + U (" · THD ") + juce::String (100.0 * std::pow (10.0, best->thdDb / 20.0), 3) + " %"
                           + U (" · H2 ") + juce::String (best->h2Db, 1) + U (" · H3 ") + juce::String (best->h3Db, 1)
-                          + U (" dBc · ganho ") + juce::String (best->gainDb, 2) + " dB");
+                          + tr (" dBc · ganho ", " dBc · gain ") + juce::String (best->gainDb, 2) + " dB");
     }
 }
 
@@ -823,13 +844,11 @@ LoginOverlay::LoginOverlay()
     password.setPasswordCharacter ((juce::juce_wchar) 0x2022);
     password.setFont (juce::Font (juce::FontOptions (18.0f)));
     password.setJustification (juce::Justification::centred);
-    password.setTextToShowWhenEmpty ("Senha", pxcol::dim);
     password.setColour (juce::TextEditor::outlineColourId, pxcol::outline);
     password.setColour (juce::TextEditor::focusedOutlineColourId, pxcol::green);
     password.onReturnKey = [this] { submit(); };
     addAndMakeVisible (password);
 
-    remember.setButtonText ("Lembrar neste computador");
     remember.setToggleState (true, juce::dontSendNotification);
     remember.setColour (juce::ToggleButton::textColourId, pxcol::text);
     remember.setColour (juce::ToggleButton::tickColourId, pxcol::green);
@@ -843,6 +862,23 @@ LoginOverlay::LoginOverlay()
     message.setJustificationType (juce::Justification::centred);
     message.setFont (juce::Font (juce::FontOptions (14.0f)));
     addAndMakeVisible (message);
+
+    language.accent = pxcol::green;
+    language.background = juce::Colours::black;
+    language.outline = pxcol::outline;
+    language.text = pxcol::text;
+    language.textDim = pxcol::dim;
+    language.hoverFill = juce::Colour (0xff222222);
+    addAndMakeVisible (language);
+    lang.bind ([this]
+    {
+        password.setTextToShowWhenEmpty (tr ("Senha", "Password"), pxcol::dim);
+        remember.setButtonText (tr ("Lembrar neste computador", "Remember this computer"));
+        enter.setButtonText (tr ("ENTRAR", "SIGN IN"));
+        message.setText ({}, juce::dontSendNotification);
+        password.repaint();
+    });
+    lang.onChange = [this] { repaint(); };
 }
 
 juce::Rectangle<int> LoginOverlay::card() const
@@ -868,7 +904,7 @@ void LoginOverlay::paint (juce::Graphics& g)
     g.drawText ("by Piradex", t.removeFromTop (22.0f), juce::Justification::centred);
     g.setColour (pxcol::dim);
     g.setFont (juce::Font (juce::FontOptions (13.0f)));
-    g.drawText (U ("Introduza a sua senha para começar"), t.removeFromTop (30.0f), juce::Justification::centred);
+    g.drawText (tr ("Introduza a sua senha para começar", "Enter your password to get started"), t.removeFromTop (30.0f), juce::Justification::centred);
 }
 
 void LoginOverlay::resized()
@@ -882,6 +918,7 @@ void LoginOverlay::resized()
     enter.setBounds (c.removeFromTop (38).withSizeKeepingCentre (160, 38));
     c.removeFromTop (8);
     message.setBounds (c.removeFromTop (40));
+    language.setBounds (card().removeFromBottom (42).removeFromRight (100).reduced (14, 9));
 }
 
 void LoginOverlay::visibilityChanged()
@@ -894,7 +931,7 @@ void LoginOverlay::submit()
 {
     if (password.isEmpty()) return;
     message.setColour (juce::Label::textColourId, pxcol::dim);
-    message.setText (U ("A verificar…"), juce::dontSendNotification);
+    message.setText (tr ("A verificar…", "Checking…"), juce::dontSendNotification);
     juce::MouseCursor::showWaitCursor();
 
     const auto r = lic::License::get().tryPassword (password.getText(), remember.getToggleState());
@@ -909,8 +946,8 @@ void LoginOverlay::submit()
     }
     password.selectAll();
     message.setColour (juce::Label::textColourId, juce::Colour (0xffff6b6b));
-    message.setText (r == lic::License::Result::Expired ? U ("Esta senha beta já expirou.")
-                                                        : U ("Senha incorreta."),
+    message.setText (r == lic::License::Result::Expired ? tr ("Esta senha beta já expirou.", "This beta password has expired.")
+                                                        : tr ("Senha incorreta.", "Incorrect password."),
                      juce::dontSendNotification);
 }
 
@@ -933,9 +970,6 @@ CurveAnalyzerEditor::CurveAnalyzerEditor (CurveAnalyzerProcessor& p)
         addAndMakeVisible (b);
         ++idx;
     }
-    roleGen.setTooltip (U ("Antes do plugin: emite o sinal de teste"));
-    roleAna.setTooltip (U ("Depois do plugin: mede a curva"));
-    roleHost.setTooltip (U ("Uma só instância: carrega o plugin aqui dentro"));
 
     // Separadores de vista
     idx = 0;
@@ -948,25 +982,25 @@ CurveAnalyzerEditor::CurveAnalyzerEditor (CurveAnalyzerProcessor& p)
         addAndMakeVisible (b);
     }
 
-    setupCombo (group,     "Grupo",  ids::group);
-    setupCombo (signal,    "Sinal",  ids::signal);
-    setupCombo (fft,       "FFT",    ids::fftSize);
-    setupCombo (source,    "Fonte",  ids::source);
-    setupCombo (channel,   "Canal",  ids::channel);
-    setupCombo (averages,  U ("Média"), ids::averages);
-    setupCombo (smoothing, U ("Suaviz."), ids::smoothing);
-    setupCombo (range,     "Escala", ids::range);
+    setupCombo (group,     {},  ids::group);
+    setupCombo (signal,    {},  ids::signal);
+    setupCombo (fft,       "FFT", ids::fftSize);
+    setupCombo (source,    {},  ids::source);
+    setupCombo (channel,   {},  ids::channel);
+    setupCombo (averages,  {}, ids::averages);
+    setupCombo (smoothing, {}, ids::smoothing);
+    setupCombo (range,     {}, ids::range);
 
-    setupBarSlider (level, levelLabel, levelAtt, U ("Nível"), ids::level, " dB");
-    setupBarSlider (sine, sineLabel, sineAtt, "Seno", ids::sineFreq, " Hz");
-    setupBarSlider (latency, latencyLabel, latencyAtt, U ("Latência"), ids::latency, "");
+    setupBarSlider (level, levelLabel, levelAtt, {}, ids::level, " dB");
+    setupBarSlider (sine, sineLabel, sineAtt, {}, ids::sineFreq, " Hz");
+    setupBarSlider (latency, latencyLabel, latencyAtt, {}, ids::latency, "");
     latency.setSliderStyle (juce::Slider::IncDecButtons);
     latency.setTextBoxStyle (juce::Slider::TextBoxLeft, false, 64, 30);
 
-    setupToggle (phaseBtn,  phaseAtt,  "FASE",      ids::showPhase);
+    setupToggle (phaseBtn,  phaseAtt,  {}, ids::showPhase);
     setupToggle (syncBtn,   syncAtt,   "AUTO SYNC", ids::autoSync);
-    setupToggle (freezeBtn, freezeAtt, "CONGELAR",  ids::freeze);
-    setupToggle (muteBtn,   muteAtt,   U ("MUTE SAÍDA"), ids::muteOut);
+    setupToggle (freezeBtn, freezeAtt, {}, ids::freeze);
+    setupToggle (muteBtn,   muteAtt,   {}, ids::muteOut);
 
     resetBtn.onClick = [this] { proc.requestReset(); };
     refBtn.onClick = [this]
@@ -1003,6 +1037,17 @@ CurveAnalyzerEditor::CurveAnalyzerEditor (CurveAnalyzerProcessor& p)
         proc.requestReset();
     };
 
+    langSwitch.accent = pxcol::green;
+    langSwitch.background = juce::Colours::black;
+    langSwitch.outline = pxcol::outline;
+    langSwitch.text = pxcol::text;
+    langSwitch.textDim = pxcol::dim;
+    langSwitch.hoverFill = juce::Colour (0xff222222);
+    addAndMakeVisible (langSwitch);
+    piradex::i18n::reload();          // outro plugin Piradex pode ter mudado o idioma
+    lang.bind ([this] { applyLanguage(); });
+    lang.onChange = [this] { status.clear(); chipText.clear(); resized(); repaint(); };
+
     login.onUnlocked = [this] { login.setVisible (false); repaint(); };
     addChildComponent (login);
     login.setVisible (! lic::License::get().isUnlocked());
@@ -1017,6 +1062,57 @@ CurveAnalyzerEditor::~CurveAnalyzerEditor()
 {
     stopTimer();
     setLookAndFeel (nullptr);
+}
+
+// Textos fixos no idioma actual (os nomes dos parâmetros vistos pelo DAW não mudam)
+void CurveAnalyzerEditor::applyLanguage()
+{
+    roleGen.setButtonText (tr ("GERADOR", "GENERATOR"));
+    roleAna.setButtonText (tr ("ANALISADOR", "ANALYSER"));
+    roleHost.setButtonText ("HOST");
+    roleGen.setTooltip (tr ("Antes do plugin: emite o sinal de teste", "Before the plugin: sends the test signal"));
+    roleAna.setTooltip (tr ("Depois do plugin: mede a curva", "After the plugin: measures the curve"));
+    roleHost.setTooltip (tr ("Uma só instância: carrega o plugin aqui dentro", "Single instance: loads the plugin inside"));
+    tabCurve.setButtonText (tr ("CURVA", "CURVE"));
+    tabWave.setButtonText (tr ("ONDA", "WAVE"));
+    tabSpec.setButtonText (tr ("ESPETRO", "SPECTRUM"));
+    tabSweep.setButtonText (tr ("VARRIMENTO", "SWEEP"));
+
+    group.label.setText (tr ("Grupo", "Group"), juce::dontSendNotification);
+    signal.label.setText (tr ("Sinal", "Signal"), juce::dontSendNotification);
+    source.label.setText (tr ("Fonte", "Source"), juce::dontSendNotification);
+    channel.label.setText (tr ("Canal", "Channel"), juce::dontSendNotification);
+    averages.label.setText (tr ("Média", "Average"), juce::dontSendNotification);
+    smoothing.label.setText (tr ("Suaviz.", "Smooth."), juce::dontSendNotification);
+    range.label.setText (tr ("Escala", "Scale"), juce::dontSendNotification);
+    levelLabel.setText (tr ("Nível", "Level"), juce::dontSendNotification);
+    sineLabel.setText (tr ("Seno", "Sine"), juce::dontSendNotification);
+    latencyLabel.setText (tr ("Latência", "Latency"), juce::dontSendNotification);
+
+    // itens das listas (mesmos ids, só muda o texto)
+    auto items = [] (juce::ComboBox& b, std::initializer_list<std::pair<const char*, const char*>> list)
+    {
+        const int sel = b.getSelectedId();      // ler antes: depois de mudar o texto deixa de "coincidir"
+        int id = 1;
+        for (auto& [pt, en] : list) b.changeItemText (id++, tr (pt, en));
+        if (sel > 0) b.setSelectedId (sel, juce::dontSendNotification);   // actualiza o texto mostrado
+    };
+    items (signal.box,    { { "Impulso", "Impulse" }, { "Sweep log", "Log sweep" }, { "Ruído rosa", "Pink noise" }, { "Seno (harmónicos)", "Sine (harmonics)" } });
+    items (source.box,    { { "Gerador", "Generator" }, { "Música", "Music" } });
+    items (channel.box,   { { "Esquerdo", "Left" }, { "Direito", "Right" }, { "Mid", "Mid" }, { "Side", "Side" } });
+    items (smoothing.box, { { "Nenhuma", "None" }, { "1/24 oit.", "1/24 oct." }, { "1/12 oit.", "1/12 oct." }, { "1/6 oit.", "1/6 oct." }, { "1/3 oit.", "1/3 oct." } });
+
+    phaseBtn.setButtonText (tr ("FASE", "PHASE"));
+    freezeBtn.setButtonText (tr ("CONGELAR", "FREEZE"));
+    muteBtn.setButtonText (tr ("MUTE SAÍDA", "MUTE OUT"));
+    clearRefBtn.setButtonText (tr ("LIMPAR REFS", "CLEAR REFS"));
+    exportBtn.setButtonText (tr ("EXPORTAR", "EXPORT"));
+    loadBtn.setButtonText (tr ("CARREGAR PLUGIN", "LOAD PLUGIN"));
+    openBtn.setButtonText (tr ("ABRIR PLUGIN", "OPEN PLUGIN"));
+    removeBtn.setButtonText (tr ("REMOVER", "REMOVE"));
+    sweepLevelBtn.setButtonText (tr ("VARRER NÍVEL", "SWEEP LEVEL"));
+    sweepFreqBtn.setButtonText (tr ("VARRER FREQUÊNCIA", "SWEEP FREQ."));
+    sweepStopBtn.setButtonText (tr ("PARAR", "STOP"));
 }
 
 void CurveAnalyzerEditor::setParam (const juce::String& id, float plain)
@@ -1141,8 +1237,8 @@ void CurveAnalyzerEditor::resized()
               { { &phaseBtn, 66 }, { &syncBtn, 108 }, { &muteBtn, 112 } }, rowH);
 
     placeRow (56,
-              { { &source.label, 48 }, { &source.box, 120 }, { &channel.label, 50 }, { &channel.box, 104 },
-                { &averages.label, 50 }, { &averages.box, 76 }, { &smoothing.label, 62 }, { &smoothing.box, 108 },
+              { { &source.label, 48 }, { &source.box, 120 }, { &channel.label, 60 }, { &channel.box, 104 },
+                { &averages.label, 62 }, { &averages.box, 76 }, { &smoothing.label, 62 }, { &smoothing.box, 108 },
                 { &range.label, 52 }, { &range.box, 94 }, { &latencyLabel, 66 }, { &latency, 128 } },
               {}, rowH);
 
@@ -1159,6 +1255,7 @@ void CurveAnalyzerEditor::resized()
         foot.removeFromRight (8);
     }
 
+    langSwitch.setBounds (foot.removeFromRight (82).reduced (0, 2));
     graph.setBounds (getLocalBounds().withTrimmedTop (144).withTrimmedBottom (40 + 22).reduced (margin, 2));
     login.setBounds (getLocalBounds());
 }
@@ -1244,19 +1341,19 @@ void CurveAnalyzerEditor::updateEnablement()
     if (ana && ! music)
     {
         const auto grp = juce::String (proc.paramIndex (ids::group));
-        if (last.notTestSignal)      { chip = U ("○ NÃO É O SINAL DE TESTE"); col = pxcol::even; }
-        else if (last.linked)        { chip = U ("● LIGADO AO GERADOR · GRUPO ") + grp; col = pxcol::green; }
-        else if (last.autoDetected)  { chip = U ("● SINAL DE TESTE DETETADO"); col = pxcol::green; }
-        else                         { chip = U ("○ SEM GERADOR NO GRUPO ") + grp; col = pxcol::even; }
+        if (last.notTestSignal)      { chip = tr ("○ NÃO É O SINAL DE TESTE", "○ NOT THE TEST SIGNAL"); col = pxcol::even; }
+        else if (last.linked)        { chip = tr ("● LIGADO AO GERADOR · GRUPO ", "● LINKED TO GENERATOR · GROUP ") + grp; col = pxcol::green; }
+        else if (last.autoDetected)  { chip = tr ("● SINAL DE TESTE DETETADO", "● TEST SIGNAL DETECTED"); col = pxcol::green; }
+        else                         { chip = tr ("○ SEM GERADOR NO GRUPO ", "○ NO GENERATOR IN GROUP ") + grp; col = pxcol::even; }
     }
     else if (ana && music)
     {
-        chip = last.sidechainMissing ? U ("○ SIDECHAIN INATIVO") : U ("● DRY (SIDECHAIN) vs WET");
+        chip = last.sidechainMissing ? tr ("○ SIDECHAIN INATIVO", "○ SIDECHAIN INACTIVE") : U ("● DRY (SIDECHAIN) vs WET");
         col = last.sidechainMissing ? pxcol::even : pxcol::green;
     }
     else if (host)
     {
-        chip = proc.hasHostedPlugin() ? U ("● ") + proc.getHostedName() : U ("○ NENHUM PLUGIN CARREGADO");
+        chip = proc.hasHostedPlugin() ? U ("● ") + proc.getHostedName() : tr ("○ NENHUM PLUGIN CARREGADO", "○ NO PLUGIN LOADED");
         col = proc.hasHostedPlugin() ? pxcol::green : pxcol::even;
     }
     if (chip != chipText || col != chipColour) { chipText = chip; chipColour = col; repaint (0, 100, getWidth(), 44); }
@@ -1274,9 +1371,9 @@ void CurveAnalyzerEditor::showPluginMenu()
         (pluginList[i].format == "AU" ? au : vst3).addItem ((int) i + 1, pluginList[i].name);
     if (vst3.getNumItems() > 0) menu.addSubMenu ("VST3", vst3);
     if (au.getNumItems() > 0)   menu.addSubMenu ("Audio Unit", au);
-    if (menu.getNumItems() == 0) menu.addItem (-1, U ("Nenhum plugin encontrado nas pastas padrão"), false);
+    if (menu.getNumItems() == 0) menu.addItem (-1, tr ("Nenhum plugin encontrado nas pastas padrão", "No plugins found in the standard folders"), false);
     menu.addSeparator();
-    menu.addItem (100000, U ("Procurar ficheiro…"));
+    menu.addItem (100000, tr ("Procurar ficheiro…", "Browse for file…"));
 
     juce::Component::SafePointer<CurveAnalyzerEditor> safe (this);
     menu.showMenuAsync (juce::PopupMenu::Options().withTargetComponent (&loadBtn), [safe] (int r)
@@ -1290,7 +1387,7 @@ void CurveAnalyzerEditor::showPluginMenu()
         };
         if (r == 100000)
         {
-            self.chooser = std::make_unique<juce::FileChooser> (U ("Escolha um plugin (.vst3 ou .component)"), juce::File(), "*.vst3;*.component");
+            self.chooser = std::make_unique<juce::FileChooser> (tr ("Escolha um plugin (.vst3 ou .component)", "Choose a plugin (.vst3 or .component)"), juce::File(), "*.vst3;*.component");
             self.chooser->launchAsync (juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles,
                                        [safe, done] (const juce::FileChooser& fc)
             {
@@ -1346,38 +1443,38 @@ void CurveAnalyzerEditor::timerCallback()
     switch (last.view)
     {
         case View::Generator:
-            t = U ("GERADOR · Grupo ") + grp + U (" · coloque um Analisador no mesmo grupo depois do plugin/equipamento a medir");
+            t = tr ("GERADOR · Grupo ", "GENERATOR · Group ") + grp + tr (" · coloque um Analisador no mesmo grupo depois do plugin/equipamento a medir", " · place an Analyser in the same group after the plugin/hardware to measure");
             break;
         case View::Response:
         case View::Harmonics:
-            t = last.hostMode ? U ("HOST · ") + (last.hostLoaded ? last.hostName : U ("sem plugin"))
-              : last.linked ? U ("Ligado ao Gerador do grupo ") + grp
-              : last.autoDetected ? U ("Sinal reconhecido no áudio (Gerador sem ligação) · acerte o Nível igual ao do Gerador")
-              : U ("Sem Gerador no grupo ") + grp;
+            t = last.hostMode ? U ("HOST · ") + (last.hostLoaded ? last.hostName : tr ("sem plugin", "no plugin"))
+              : last.linked ? tr ("Ligado ao Gerador do grupo ", "Linked to the Generator of group ") + grp
+              : last.autoDetected ? tr ("Sinal reconhecido no áudio (Gerador sem ligação) · acerte o Nível igual ao do Gerador", "Signal recognised in the audio (Generator not linked) · set the Level to match the Generator")
+              : tr ("Sem Gerador no grupo ", "No Generator in group ") + grp;
             t << U (" · ") << signalName (s.signal) << " " << juce::String (s.levelDb, 1) << U (" dBFS · FFT ") << s.N
               << " (" << juce::String (binHz, 1) << " Hz/bin)";
             if (last.view == View::Response)
             {
                 if (last.latencyReliable)
-                    t << U (" · Latência: ") << juce::roundToInt (last.delaySamples) << U (" amostras (") << juce::String (latMs, 2) << " ms)";
+                    t << tr (" · Latência: ", " · Latency: ") << juce::roundToInt (last.delaySamples) << tr (" amostras (", " samples (") << juce::String (latMs, 2) << " ms)";
                 else
-                    t << U (" · Latência: reproduza a sessão para medir");
+                    t << tr (" · Latência: reproduza a sessão para medir", " · Latency: play the session to measure");
             }
             else
                 t << U (" · f0 = ") << juce::String (last.harm.f0, 1) << U (" Hz");
-            t << U (" · Nível: ") << juce::String (last.levelDb, 1) << U (" dBFS");
+            t << tr (" · Nível: ", " · Level: ") << juce::String (last.levelDb, 1) << U (" dBFS");
             break;
         case View::Music:
-            t = (last.hostMode ? U ("HOST · música através de ") + (last.hostLoaded ? last.hostName : U ("(sem plugin)"))
-                               : U ("Música: sidechain (dry) vs entrada (wet)"))
+            t = (last.hostMode ? tr ("HOST · música através de ", "HOST · music through ") + (last.hostLoaded ? last.hostName : tr ("(sem plugin)", "(no plugin)"))
+                               : tr ("Música: sidechain (dry) vs entrada (wet)", "Music: sidechain (dry) vs input (wet)"))
               + U (" · FFT ") + juce::String (s.N)
-              + U (" · Latência alinhada: ") + juce::String (juce::roundToInt (last.delaySamples)) + U (" amostras (")
+              + tr (" · Latência alinhada: ", " · Aligned latency: ") + juce::String (juce::roundToInt (last.delaySamples)) + tr (" amostras (", " samples (")
               + juce::String (latMs, 2) + U (" ms) · Dry ") + juce::String (last.dryLevelDb, 1) + U (" dBFS · Wet ")
               + juce::String (last.levelDb, 1) + U (" dBFS");
             break;
         case View::None: break;
     }
-    if (proc.paramIndex (ids::freeze) == 1 && proc.role() != Role::Generator) t = U ("CONGELADO · ") + t;
+    if (proc.paramIndex (ids::freeze) == 1 && proc.role() != Role::Generator) t = tr ("CONGELADO · ", "FROZEN · ") + t;
     if (t != status) { status = t; repaint (getLocalBounds().withTrimmedBottom (40).removeFromBottom (22)); }
 }
 
@@ -1388,7 +1485,7 @@ void CurveAnalyzerEditor::exportCsv()
     const auto tab = effectiveTab();
     if (r.curve.empty() && r.sweep.empty()) return;
 
-    chooser = std::make_unique<juce::FileChooser> (U ("Exportar (CSV)"),
+    chooser = std::make_unique<juce::FileChooser> (tr ("Exportar (CSV)", "Export (CSV)"),
                                                    juce::File::getSpecialLocation (juce::File::userDesktopDirectory)
                                                        .getChildFile ("ANALYSER.csv"), "*.csv");
     chooser->launchAsync (juce::FileBrowserComponent::saveMode | juce::FileBrowserComponent::canSelectFiles
@@ -1397,50 +1494,53 @@ void CurveAnalyzerEditor::exportCsv()
     {
         auto file = fc.getResult();
         if (file == juce::File()) return;
-        // Formato PT: separador ';' e vírgula decimal (abre direto no Excel em português)
-        auto num = [] (double v, int dec) { return juce::String (v, dec).replaceCharacter ('.', ','); };
+        // PT: separador ';' e vírgula decimal (Excel em português) · EN: ',' e ponto decimal
+        const bool pt = piradex::i18n::isPortuguese();
+        auto num = [pt] (double v, int dec) { return pt ? juce::String (v, dec).replaceCharacter ('.', ',') : juce::String (v, dec); };
+        const juce::String sep = pt ? ";" : ",";
+        auto hdr = [pt] (const char* ptText, const char* enText) { return pt ? juce::String::fromUTF8 (ptText) : juce::String::fromUTF8 (enText).replaceCharacter (';', ','); };
         juce::String out;
         if (tab == ViewTab::Sweep && ! r.sweep.empty())
         {
-            out << (r.sweepShownKind == 2 ? U ("Frequência (Hz)") : U ("Nível (dBFS)")) << U (";THD (%);H2 (dBc);H3 (dBc);Ganho (dB)\n");
+            out << (r.sweepShownKind == 2 ? hdr ("Frequência (Hz)", "Frequency (Hz)") : hdr ("Nível (dBFS)", "Level (dBFS)")) << hdr (";THD (%);H2 (dBc);H3 (dBc);Ganho (dB)\n", ";THD (%);H2 (dBc);H3 (dBc);Gain (dB)\n");
             for (auto& s : r.sweep)
                 if (s.valid)
-                    out << num (s.x, 1) << ";" << num (100.0 * std::pow (10.0, s.thdDb / 20.0), 5) << ";" << num (s.h2Db, 2)
-                        << ";" << num (s.h3Db, 2) << ";" << num (s.gainDb, 3) << "\n";
+                    out << num (s.x, 1) << sep << num (100.0 * std::pow (10.0, s.thdDb / 20.0), 5) << sep << num (s.h2Db, 2)
+                        << sep << num (s.h3Db, 2) << sep << num (s.gainDb, 3) << "\n";
         }
         else if (tab == ViewTab::Wave && ! r.waveOut.empty())
         {
-            out << U ("Tempo (ms);Entrada;Saída\n");
+            out << hdr ("Tempo (ms);Entrada;Saída\n", "Time (ms);Input;Output\n");
             for (size_t i = 0; i < r.waveOut.size(); ++i)
                 out << num (r.waveStartMs + r.waveSpanMs * (double) i / (double) juce::jmax ((size_t) 1, r.waveOut.size() - 1), 4) << ";"
-                    << (i < r.waveIn.size() ? num (r.waveIn[i], 6) : juce::String()) << ";" << num (r.waveOut[i], 6) << "\n";
+                    << (i < r.waveIn.size() ? num (r.waveIn[i], 6) : juce::String()) << sep << num (r.waveOut[i], 6) << "\n";
         }
         else if (tab == ViewTab::Spectrum && ! r.specWet.empty())
         {
-            out << U ("Frequência (Hz);Antes (dB);Depois (dB)\n");
+            out << hdr ("Frequência (Hz);Antes (dB);Depois (dB)\n", "Frequency (Hz);Before (dB);After (dB)\n");
             for (size_t i = 0; i < r.specWet.freq.size(); ++i)
                 if (r.specWet.valid[i])
-                    out << num (r.specWet.freq[i], 2) << ";" << num (r.specDry.magDb[i], 2) << ";" << num (r.specWet.magDb[i], 2) << "\n";
+                    out << num (r.specWet.freq[i], 2) << sep << num (r.specDry.magDb[i], 2) << sep << num (r.specWet.magDb[i], 2) << "\n";
         }
         else if (r.view == View::Harmonics)
         {
-            out << U ("Harmónico;Frequência (Hz);dBFS;dBc\n");
+            out << hdr ("Harmónico;Frequência (Hz);dBFS;dBc\n", "Harmonic;Frequency (Hz);dBFS;dBc\n");
             for (int k = 1; k <= pca::HarmonicResult::kMaxH; ++k)
                 if (r.harm.present[k])
-                    out << "H" << k << ";" << num (r.harm.f0 * k, 1) << ";" << num (r.harm.ampDb[k], 2) << ";" << num (r.harm.relDb[k], 2) << "\n";
-            out << "THD %;" << num (r.harm.thdPct, 5) << "\nTHD+N %;" << num (r.harm.thdnPct, 5) << "\n\n";
-            out << U ("Frequência (Hz);Espetro (dBFS)\n");
+                    out << "H" << k << sep << num (r.harm.f0 * k, 1) << sep << num (r.harm.ampDb[k], 2) << sep << num (r.harm.relDb[k], 2) << "\n";
+            out << hdr ("THD %;", "THD %;") << num (r.harm.thdPct, 5) << hdr ("\nTHD+N %;", "\nTHD+N %;") << num (r.harm.thdnPct, 5) << "\n\n";
+            out << hdr ("Frequência (Hz);Espetro (dBFS)\n", "Frequency (Hz);Spectrum (dBFS)\n");
             for (size_t i = 0; i < r.curve.freq.size(); ++i)
-                out << num (r.curve.freq[i], 2) << ";" << num (r.curve.magDb[i], 2) << "\n";
+                out << num (r.curve.freq[i], 2) << sep << num (r.curve.magDb[i], 2) << "\n";
         }
         else
         {
-            out << U ("Frequência (Hz);Magnitude (dB);Fase (graus)") << (r.view == View::Music ? U (";Coerência") : juce::String()) << "\n";
+            out << hdr ("Frequência (Hz);Magnitude (dB);Fase (graus)", "Frequency (Hz);Magnitude (dB);Phase (deg)") << (r.view == View::Music ? hdr (";Coerência", ";Coherence") : juce::String()) << "\n";
             for (size_t i = 0; i < r.curve.freq.size(); ++i)
             {
                 if (! r.curve.valid[i]) continue;
-                out << num (r.curve.freq[i], 2) << ";" << num (r.curve.magDb[i], 3) << ";" << num (r.curve.phaseDeg[i], 2);
-                if (r.view == View::Music) out << ";" << num (r.curve.coh[i], 4);
+                out << num (r.curve.freq[i], 2) << sep << num (r.curve.magDb[i], 3) << sep << num (r.curve.phaseDeg[i], 2);
+                if (r.view == View::Music) out << sep << num (r.curve.coh[i], 4);
                 out << "\n";
             }
         }

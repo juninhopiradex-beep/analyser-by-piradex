@@ -1,4 +1,4 @@
-ANALYSER by Piradex 1.1.1
+ANALYSER by Piradex 2.0.0
 
 Analisador de curvas, fase, latência e harmónicos para plugins e equipamento analógico.
 

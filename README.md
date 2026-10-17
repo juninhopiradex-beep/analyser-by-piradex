@@ -2,7 +2,7 @@
 
 Analisador de curvas para ver **exatamente o que um plugin ou um equipamento analógico faz ao som**: resposta em frequência, fase, latência, harmónicos/THD — e também o que o equipamento faz **com música real** (dry vs wet).
 
-Formatos: **VST3** e **AU** para macOS **10.13 ou superior**, binário universal (**Intel** e **Apple Silicon**) — testado para correr em Macs de 2013 com Catalina; e **VST3 para Windows 10/11 (64 bits)**, com instalador. Código JUCE 8, C++17.
+Versão **2.0.0**. Formatos: **VST3**, **AU** e **AAX** para macOS **10.13 ou superior**, binário universal (**Intel** e **Apple Silicon**) — testado para correr em Macs de 2013 com Catalina; e **VST3 + AAX para Windows 10/11 (64 bits)**, com instalador. Interface em **Português e Inglês**. Código JUCE 8, C++17.
 
 ## Acesso por senha
 Ao abrir o plugin aparece o ecrã de login. Há dois tipos de senha:
@@ -18,12 +18,20 @@ python3 tools/nova_senha_beta.py 2027-03-31
 Cola a linha impressa em `kKeys` (`Source/License.cpp`) e faz push — o GitHub compila. Nunca escrevas as senhas em ficheiros do repositório.
 
 ## Instalação no Windows
-O GitHub Actions gera `ANALYSER-by-Piradex-1.1.1-Windows-Setup.exe` (instala o VST3 em `C:\Program Files\Common Files\VST3`) e um `.zip` para instalação manual. Não precisa do *Visual C++ Redistributable*. Como o instalador não tem assinatura digital, o Windows pode mostrar "O Windows protegeu o seu PC": **Mais informações → Executar mesmo assim**.
+O GitHub Actions gera `ANALYSER-by-Piradex-2.0.0-Windows-Setup.exe` (instala o VST3 em `C:\Program Files\Common Files\VST3`) e um `.zip` para instalação manual. Não precisa do *Visual C++ Redistributable*. Como o instalador não tem assinatura digital, o Windows pode mostrar "O Windows protegeu o seu PC": **Mais informações → Executar mesmo assim**.
 
 ## Instalação no Mac
-O GitHub Actions gera `ANALYSER-by-Piradex-1.1.1-macOS.dmg` com o instalador `.pkg` (VST3 + AU) e um `LEIA-ME.txt`. Como o instalador não está assinado com um certificado da Apple, na primeira vez: **botão direito no .pkg → Abrir → Abrir**.
+O GitHub Actions gera `ANALYSER-by-Piradex-2.0.0-macOS.dmg` com o instalador `.pkg` (VST3 + AU) e um `LEIA-ME.txt`. Como o instalador não está assinado com um certificado da Apple, na primeira vez: **botão direito no .pkg → Abrir → Abrir**.
+
+## AAX (Pro Tools)
+O AAX é compilado no GitHub Actions para macOS (Universal 2) e Windows x64. O Pro Tools normal só carrega plugins AAX **assinados pela PACE** (`wraptool`, conta PACE/iLok). Sem essas credenciais, sai `...-AAX-nao-assinado.zip`, que só abre no *Pro Tools Developer*. Para assinar automaticamente, adiciona nos *Secrets* do repositório: `PACE_ACCOUNT`, `PACE_PASSWORD`, `PACE_WCGUID`, `PACE_EDEN_URL` e, para Windows, `PACE_EDEN_WIN_URL`, `PACE_KEYFILE_B64`, `PACE_KEYPASSWORD`.
 
 ---
+
+## Novidades na 2.0.0
+
+- **Português e Inglês:** seletor **PT | EN** no rodapé e no ecrã de senha; a interface muda logo, sem reabrir. Na primeira abertura segue o idioma do sistema. A escolha é comum a todos os plugins Piradex. Os nomes de automação no DAW não mudam. Em inglês, o CSV exportado usa vírgula como separador e ponto decimal.
+- **AAX** (Pro Tools) para macOS e Windows.
 
 ## Novidades na 1.1.1
 

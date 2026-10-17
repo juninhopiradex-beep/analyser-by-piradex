@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.22)
-project(AnalyserByPiradex VERSION 1.1.1)
+project(AnalyserByPiradex VERSION 2.0.0)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -22,9 +22,11 @@ else()
 endif()
 
 if(APPLE)
-    set(ANL_FORMATS VST3 AU)
+    set(ANL_FORMATS VST3 AU AAX)
+elseif(WIN32)
+    set(ANL_FORMATS VST3 AAX)
 else()
-    set(ANL_FORMATS VST3)
+    set(ANL_FORMATS VST3)            # Linux: só desenvolvimento/testes
 endif()
 
 juce_add_plugin(Analyser
@@ -43,12 +45,14 @@ juce_add_plugin(Analyser
     EDITOR_WANTS_KEYBOARD_FOCUS FALSE
     COPY_PLUGIN_AFTER_BUILD FALSE
     VST3_CATEGORIES Analyzer Fx
-    AU_MAIN_TYPE kAudioUnitType_Effect)
+    AU_MAIN_TYPE kAudioUnitType_Effect
+    AAX_CATEGORY Effect)   # AAX: SDK incluído na JUCE 8; o Pro Tools normal exige assinatura PACE
 
 target_sources(Analyser PRIVATE
     Source/PluginProcessor.cpp
     Source/PluginEditor.cpp
-    Source/License.cpp)
+    Source/License.cpp
+    Source/i18n/PiradexLanguage.cpp)
 
 target_include_directories(Analyser PRIVATE Source)
 
@@ -58,7 +62,13 @@ target_compile_definitions(Analyser PUBLIC
     JUCE_WEB_BROWSER=0
     JUCE_USE_CURL=0
     JUCE_VST3_CAN_REPLACE_VST2=0
-    JUCE_DISPLAY_SPLASH_SCREEN=0)
+    JUCE_DISPLAY_SPLASH_SCREEN=0
+    ANL_VERSION_STRING="${PROJECT_VERSION}")
+
+# MSVC: ler o código-fonte como UTF-8 (textos em português)
+if(MSVC)
+    target_compile_options(Analyser PRIVATE /utf-8)
+endif()
 
 target_link_libraries(Analyser
     PRIVATE

@@ -785,11 +785,11 @@ void CurveAnalyzerProcessor::loadHostedPlugin (const juce::String& formatName, c
     for (auto* f : formatManager.getFormats())
         if (f->getName() == formatName || (formatName == "AU" && f->getName() == "AudioUnit"))
             fmt = f;
-    if (fmt == nullptr) { if (done) done (U8 ("Formato não suportado: ") + formatName); return; }
+    if (fmt == nullptr) { if (done) done (piradex::i18n::tr ("Formato não suportado: ", "Unsupported format: ") + formatName); return; }
 
     juce::OwnedArray<juce::PluginDescription> types;
     fmt->findAllTypesForFile (types, fileOrId);
-    if (types.isEmpty()) { if (done) done (U8 ("Não foi possível ler este plugin.")); return; }
+    if (types.isEmpty()) { if (done) done (piradex::i18n::tr ("Não foi possível ler este plugin.", "Could not read this plugin.")); return; }
 
     const auto desc = *types[0];
     const double sr = sampleRate.load() > 0.0 ? sampleRate.load() : 48000.0;
@@ -800,7 +800,7 @@ void CurveAnalyzerProcessor::loadHostedPlugin (const juce::String& formatName, c
         [this, alive, desc, formatName, fileOrId, sr, bs, done] (std::unique_ptr<juce::AudioPluginInstance> inst, const juce::String& err)
     {
         if (alive.expired()) return;
-        if (inst == nullptr) { if (done) done (err.isNotEmpty() ? err : U8 ("O plugin não abriu.")); return; }
+        if (inst == nullptr) { if (done) done (err.isNotEmpty() ? err : piradex::i18n::tr ("O plugin não abriu.", "The plugin did not open.")); return; }
 
         // Estéreo dentro/fora sempre que o plugin aceitar
         auto layout = inst->getBusesLayout();

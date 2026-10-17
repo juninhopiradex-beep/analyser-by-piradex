@@ -1,6 +1,7 @@
 #pragma once
 
 #include "PluginProcessor.h"
+#include "i18n/PiradexLanguageUI.h"
 
 namespace pxcol
 {
@@ -71,6 +72,7 @@ private:
     ViewTab tab = ViewTab::Curve;
     juce::Point<float> hover;
     bool hovering = false;
+    piradex::i18n::Binder lang;
 };
 
 // Ecrã de login (tapa o plugin até a senha ser aceite)
@@ -90,6 +92,8 @@ private:
     juce::ToggleButton remember;
     juce::TextButton enter { "ENTRAR" };
     juce::Label message;
+    piradex::i18n::LanguageSwitch language;
+    piradex::i18n::Binder lang;
 };
 
 class CurveAnalyzerEditor : public juce::AudioProcessorEditor, private juce::Timer
@@ -104,6 +108,7 @@ private:
     void timerCallback() override;
     void exportCsv();
     void updateEnablement();
+    void applyLanguage();
     void showPluginMenu();
     ViewTab effectiveTab() const;
     bool tabAvailable (ViewTab t) const;
@@ -152,6 +157,9 @@ private:
     AnalysisResults last;
     std::unique_ptr<juce::FileChooser> chooser;
     std::vector<CurveAnalyzerProcessor::InstalledPlugin> pluginList;
+
+    piradex::i18n::LanguageSwitch langSwitch;
+    piradex::i18n::Binder lang;          // por último: aplica os textos depois de tudo construído
 
     static juce::String U8label (const char* s) { return juce::String::fromUTF8 (s); }
 
