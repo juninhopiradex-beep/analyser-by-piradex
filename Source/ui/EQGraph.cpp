@@ -21,6 +21,8 @@ static juce::String noteName (double f)
          + (cents == 0 ? "" : (cents > 0 ? " +" : " ") + juce::String (cents) + "c");
 }
 
+namespace { constexpr double kAutoUp = 11.0, kAutoDown = 9.5; }
+
 EQGraph::EQGraph (EQMotionProcessor& p) : proc (p), st (p.state)
 {
     setWantsKeyboardFocus (true);
@@ -31,7 +33,10 @@ EQGraph::EQGraph (EQMotionProcessor& p) : proc (p), st (p.state)
                             "Double-click to add a band; drag the nodes to change frequency and gain."));
     });
     lang.onChange = [this] { repaint(); };
-    dbRangeVal = (float) (double) proc.uiState.getProperty ("dbRange", 12.0);
+    dbManual = (float) (double) proc.uiState.getProperty ("dbRange", 12.0);
+    autoScale = (bool) proc.uiState.getProperty ("dbAuto", true);
+    bands = proc.currentBands();
+    dbRangeVal = dbTarget = autoScale ? (peakGainDb() > kAutoUp ? 20.0f : 12.0f) : dbManual;
     viewLo = proc.uiState.getProperty ("viewLo", 10.0);
     viewHi = proc.uiState.getProperty ("viewHi", 30000.0);
     halo.fill (0.0f);
@@ -71,7 +76,50 @@ float EQGraph::yForSpec (double db) const
     return r.getY() + (float) ((top - db) / (top - bottom)) * r.getHeight();
 }
 
-void EQGraph::setDbRange (float r) { dbRangeVal = r; proc.uiState.setProperty ("dbRange", r, nullptr); lastHash = 0; repaint(); }
+void EQGraph::setDbRange (float r)
+{
+    autoScale = false;
+    dbManual = dbTarget = juce::jlimit (3.0f, 30.0f, r);
+    proc.uiState.setProperty ("dbRange", dbManual, nullptr);
+    proc.uiState.setProperty ("dbAuto", false, nullptr);
+    if (onScaleChanged) onScaleChanged();
+    repaint();
+}
+
+void EQGraph::setAutoScale (bool on)
+{
+    autoScale = on;
+    proc.uiState.setProperty ("dbAuto", on, nullptr);
+    if (on) updateAutoScale();
+    else    dbManual = dbTarget = (float) juce::roundToInt (dbTarget);   // fica onde estava
+    if (onScaleChanged) onScaleChanged();
+    repaint();
+}
+
+// maior ganho que o utilizador pediu (nós, mais o alcance da dinâmica), já com a Escala global.
+// Os cortes não contam: a curva deles vai a -∞ e faria a escala saltar sempre para ±20.
+double EQGraph::peakGainDb() const
+{
+    const double scale = proc.apvts.getRawParameterValue (ids::gainScale)->load() * 0.01;
+    double pk = 0.0;
+    for (const auto& p : bands)
+    {
+        if (! p.isProcessing()) continue;
+        if (p.type != FilterType::Bell && p.type != FilterType::LowShelf && p.type != FilterType::HighShelf && p.type != FilterType::Tilt) continue;
+        pk = std::max (pk, std::abs (p.gainDb * scale));
+        if (p.isDynamic()) pk = std::max (pk, std::abs ((p.gainDb + p.rangeDb) * scale));
+    }
+    for (const auto& s : proc.smart.suggestion.bands) pk = std::max (pk, std::abs (s.gainDb));
+    return pk;
+}
+
+// histerese: sobe para ±20 acima de 11 dB, só volta a ±12 abaixo de 9,5 dB (a grelha não "treme" à volta de 12)
+void EQGraph::updateAutoScale()
+{
+    const double pk = peakGainDb();
+    if (pk > kAutoUp) dbTarget = 20.0f;
+    else if (pk < kAutoDown) dbTarget = 12.0f;
+}
 void EQGraph::resetZoom() { viewLo = 10.0; viewHi = 30000.0; proc.uiState.setProperty ("viewLo", viewLo, nullptr); proc.uiState.setProperty ("viewHi", viewHi, nullptr); rebuildFreqs(); }
 
 void EQGraph::resized() { rebuildFreqs(); }
@@ -105,6 +153,15 @@ void EQGraph::timerCallback()
         const float prev = halo[(size_t) b];
         halo[(size_t) b] = prev + (target - prev) * 0.35f;
         moving |= std::abs (halo[(size_t) b] - prev) > 0.01f;
+    }
+    // escala automática: não muda durante um arrasto (o nó tem de ficar debaixo do rato); anima ~150 ms
+    if (autoScale && drag == Drag::None) updateAutoScale();
+    if (std::abs (dbTarget - dbRangeVal) > 0.005f)
+    {
+        dbRangeVal += (dbTarget - dbRangeVal) * 0.35f;
+        if (std::abs (dbTarget - dbRangeVal) < 0.05f) dbRangeVal = dbTarget;
+        moving = true;
+        if (onScaleChanged) onScaleChanged();
     }
     if (moving || smartOpen) repaint();
 }
@@ -273,8 +330,9 @@ void EQGraph::drawGrid (juce::Graphics& g, juce::Rectangle<float> r)
         }
     }
 
-    const float step = dbRangeVal <= 3 ? 1.0f : dbRangeVal <= 6 ? 2.0f : dbRangeVal <= 12 ? 3.0f : dbRangeVal <= 24 ? 6.0f : 10.0f;
-    for (float d = -dbRangeVal; d <= dbRangeVal + 0.01f; d += step)
+    const float R = dbTarget;
+    const float step = R <= 3 ? 1.0f : R <= 6 ? 2.0f : R <= 12 ? 3.0f : R <= 20 ? 5.0f : R <= 24 ? 6.0f : 10.0f;
+    for (float d = -std::floor (dbRangeVal / step) * step; d <= dbRangeVal + 0.01f; d += step)
     {
         const float y = yForDb (d);
         g.setColour (std::abs (d) < 0.01f ? pal::grid.interpolatedWith (pal::textFaint, 0.45f) : pal::grid.withAlpha (0.7f));
@@ -737,8 +795,10 @@ void EQGraph::mouseDown (const juce::MouseEvent& e)
         });
         m.addSeparator();
         juce::PopupMenu range;
-        for (float v : { 3.0f, 6.0f, 12.0f, 24.0f, 30.0f })
-            range.addItem (juce::String::fromUTF8 ("±") + juce::String ((int) v) + " dB", true, std::abs (dbRangeVal - v) < 0.01f, [this, v] { setDbRange (v); });
+        range.addItem (tr ("Automática (±12 / ±20 dB)", "Automatic (±12 / ±20 dB)"), true, autoScale, [this] { setAutoScale (true); });
+        range.addSeparator();
+        for (float v : { 3.0f, 6.0f, 12.0f, 16.0f, 20.0f, 24.0f, 30.0f })
+            range.addItem (juce::String::fromUTF8 ("±") + juce::String ((int) v) + " dB", true, ! autoScale && std::abs (dbTarget - v) < 0.01f, [this, v] { setDbRange (v); });
         m.addSubMenu (tr ("Escala do gráfico", "Graph scale"), range);
         m.addItem (tr ("Repor zoom", "Reset zoom"), isZoomed(), false, [this] { resetZoom(); });
         m.addSeparator();

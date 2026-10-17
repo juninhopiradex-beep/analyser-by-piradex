@@ -227,11 +227,56 @@ static int marketingCaptures()
     return 0;
 }
 
+
+// Capturas da escala vertical automática (EQM_ESCALA=1): mesmo projeto com ajuste suave e com um realce forte
+static int scaleCaptures()
+{
+    namespace L = piradex::i18n;
+    juce::File::getCurrentWorkingDirectory().getChildFile ("docs/escala").createDirectory();
+    auto p = make();
+    p->state.loadFactory (presets::factory()[1]);   // "Voz rap presente"
+    std::unique_ptr<juce::AudioProcessorEditor> ed (p->createEditor());
+    auto* e = dynamic_cast<EQMotionEditor*> (ed.get());
+    ed->setSize (EQMotionEditor::kBaseW, EQMotionEditor::kBaseH);
+    e->getGraph().setAutoScale (true);
+    auto x = noise (48000, 11, 0.2);
+    auto feed = [&] { for (int k = 0; k < 6; ++k) { run (*p, x); pump (60); } };
+    auto save = [&] (const juce::String& name, float sc = 1.0f)
+    {
+        auto img = ed->createComponentSnapshot (ed->getLocalBounds(), true, sc);
+        juce::File f (juce::File::getCurrentWorkingDirectory().getChildFile ("docs/escala/" + name));
+        f.deleteFile();
+        juce::FileOutputStream os (f);
+        juce::PNGImageFormat().writeImageToStream (img, os);
+        std::printf ("  captura: %s  (escala do gráfico: %.1f dB, auto=%d)\n", name.toRawUTF8(), e->getGraph().dbRange(), (int) e->getGraph().isAutoScale());
+    };
+    L::set (L::Language::PT, false);
+    e->getGraph().selectBand (3);
+    feed(); pump (400);
+    save ("1_auto_12dB.png"); save ("1_auto_12dB@2x.png", 2.0f);
+
+    // realce forte: +15 dB a 3,2 kHz -> a escala passa sozinha a ±20 dB (com animação)
+    const int b = p->state.firstFreeBand();
+    p->state.setBand (b, mk (FilterType::Bell, 3200, 15.0, 1.2));
+    e->getGraph().selectBand (b);
+    run (*p, x); pump (35);
+    for (int k = 0; k < 8; ++k) { pump (34); save ("anim_" + juce::String (k).paddedLeft ('0', 2) + ".png"); }
+    feed(); pump (400);
+    save ("2_auto_20dB.png"); save ("2_auto_20dB@2x.png", 2.0f);
+
+    // manual: o utilizador fixa ±12 dB no knob -> a curva sai da escala (por isso o Auto existe)
+    e->getGraph().setDbRange (12.0f);
+    feed(); pump (400);
+    save ("3_manual_12dB.png");
+    return 0;
+}
+
 int main()
 {
     juce::ScopedJuceInitialiser_GUI gui;
     lic::License::get().unlockForTests();
     if (std::getenv ("EQM_CAPTURAS") != nullptr) return marketingCaptures();
+    if (std::getenv ("EQM_ESCALA") != nullptr) return scaleCaptures();
     testLanguage();
     const double fs = 48000;
 

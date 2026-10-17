@@ -218,9 +218,10 @@ public:
         const float sl = az.slope.load();
         slope.setSelectedId (sl < 1 ? 1 : sl < 4 ? 2 : sl < 5 ? 3 : 4, juce::dontSendNotification);
         slope.onChange = [this] { static const float s[] = { 0.0f, 3.0f, 4.5f, 6.0f }; proc.analyzer.slope.store (s[slope.getSelectedId() - 1]); proc.uiState.setProperty ("slope", proc.analyzer.slope.load(), nullptr); };
-        dbRange.addItemList ({ juce::String::fromUTF8 ("±3 dB"), juce::String::fromUTF8 ("±6 dB"), juce::String::fromUTF8 ("±12 dB"), juce::String::fromUTF8 ("±24 dB"), juce::String::fromUTF8 ("±30 dB") }, 1);
-        static const float ranges[] = { 3, 6, 12, 24, 30 };
-        for (int i = 0; i < 5; ++i) if (std::abs (ranges[i] - currentDbRange) < 0.1f) dbRange.setSelectedId (i + 1, juce::dontSendNotification);
+        dbRange.addItemList ({ tr ("Automática (±12 / ±20)", "Automatic (±12 / ±20)"), juce::String::fromUTF8 ("±3 dB"), juce::String::fromUTF8 ("±6 dB"), juce::String::fromUTF8 ("±12 dB"),
+                               juce::String::fromUTF8 ("±16 dB"), juce::String::fromUTF8 ("±20 dB"), juce::String::fromUTF8 ("±24 dB"), juce::String::fromUTF8 ("±30 dB") }, 1);
+        static const float ranges[] = { 0, 3, 6, 12, 16, 20, 24, 30 };   // 0 = automática
+        for (int i = 0; i < 8; ++i) if (std::abs (ranges[i] - currentDbRange) < 0.1f) dbRange.setSelectedId (i + 1, juce::dontSendNotification);
         dbRange.onChange = [this] { applyDb (ranges[dbRange.getSelectedId() - 1]); };
         size.addItemList ({ "100 %", "125 %", "150 %", "175 %", "200 %" }, 1);
         const float sc = (float) (double) proc.uiState.getProperty ("scale", 1.0);
@@ -252,6 +253,7 @@ public:
             relabel (precision, { tr ("Baixa (2048)", "Low (2048)"), tr ("Média (4096)", "Medium (4096)"), tr ("Alta (8192)", "High (8192)"), tr ("Máxima (16384)", "Maximum (16384)") });
             relabel (speed, { tr ("Lenta", "Slow"), tr ("Média", "Medium"), tr ("Rápida", "Fast") });
             relabel (slope, { "0 dB/oct", "3 dB/oct", tr ("4,5 dB/oct", "4.5 dB/oct"), "6 dB/oct" });
+            dbRange.changeItemText (1, tr ("Automática (±12 / ±20)", "Automatic (±12 / ±20)"));
             relabel (lpQ, { tr ("Baixa", "Low"), tr ("Média", "Medium"), tr ("Alta", "High") });
             look.setLabel (tr ("só Natural", "Natural only"));
             logout.setButtonText (tr ("Terminar sessão", "Sign out"));

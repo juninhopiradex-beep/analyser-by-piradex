@@ -187,6 +187,20 @@ public:
         delta.setClickingTogglesState (true);
         delta.getProperties().set ("accent", (juce::int64) pal::accent2.getARGB());
         addAndMakeVisible (delta);
+        scaleKnob.setSliderStyle (juce::Slider::RotaryHorizontalVerticalDrag);
+        scaleKnob.setTextBoxStyle (juce::Slider::NoTextBox, false, 0, 0);
+        scaleKnob.setRotaryParameters (juce::MathConstants<float>::pi * 1.25f, juce::MathConstants<float>::pi * 2.75f, true);
+        scaleKnob.setRange (12.0, 20.0, 1.0);
+        scaleKnob.setMouseDragSensitivity (90);
+        scaleKnob.setDoubleClickReturnValue (false, 12.0);
+        scaleKnob.onValueChange = [this] { if (onScaleKnob) onScaleKnob ((float) scaleKnob.getValue()); };
+        scaleKnob.onDragStart = [this] { if (onScaleKnob) onScaleKnob ((float) scaleKnob.getValue()); };
+        scaleKnob.onDoubleClick = [this] { if (onScaleAuto) onScaleAuto (true); };
+        addAndMakeVisible (scaleKnob);
+        autoBtn.setClickingTogglesState (true);
+        autoBtn.getProperties().set ("radius", 5.0f);
+        autoBtn.onClick = [this] { if (onScaleAuto) onScaleAuto (autoBtn.getToggleState()); };
+        addAndMakeVisible (autoBtn);
         zoom.getProperties().set ("flat", true);
         zoom.onClick = [this] { if (onResetZoom) onResetZoom(); };
         addAndMakeVisible (zoom);
@@ -200,12 +214,31 @@ public:
             delta.setTooltip (tr ("Delta: ouvir só o que o EQ muda (saída menos o original alinhado em latência)",
                                   "Delta: hear only what the EQ changes (output minus the latency-aligned original)"));
             zoom.setButtonText (tr ("Repor zoom", "Reset zoom"));
+            scaleKnob.setTitle (tr ("Escala do gráfico", "Graph scale"));
+            scaleKnob.setTooltip (tr ("Escala vertical do gráfico (±12 a ±20 dB). Rodar desliga o Auto; duplo clique volta ao Auto.",
+                                      "Vertical graph scale (±12 to ±20 dB). Turning it switches Auto off; double-click returns to Auto."));
+            autoBtn.setTooltip (tr ("Auto: a escala passa a ±20 dB quando algum ganho passa dos 11 dB e volta a ±12 dB abaixo de 9,5 dB",
+                                    "Auto: the scale goes to ±20 dB when any gain exceeds 11 dB and back to ±12 dB below 9.5 dB"));
+            scaleLabel = tr ("ESCALA", "SCALE");
+            repaint();
             zoom.setTooltip (tr ("Repor zoom (Cmd/Ctrl + roda para aproximar, Alt + arrastar para deslocar)",
                                  "Reset zoom (Cmd/Ctrl + wheel to zoom in, Alt + drag to pan)"));
         });
     }
     std::function<void()> onResetZoom;
     void setZoomed (bool z) { zoom.setVisible (z); }
+
+    // escala vertical do gráfico: knob ±12…±20 dB + Auto
+    std::function<void (float)> onScaleKnob;
+    std::function<void (bool)> onScaleAuto;
+    void showScale (float shown, float target, bool isAuto)
+    {
+        scaleShown = shown; scaleTarget = target; scaleAuto = isAuto;
+        scaleKnob.setValue (juce::jlimit (12.0, 20.0, (double) shown), juce::dontSendNotification);
+        scaleKnob.getProperties().set ("colour", (juce::int64) (isAuto ? pal::accent.withAlpha (0.55f) : pal::accent).getARGB());
+        autoBtn.setToggleState (isAuto, juce::dontSendNotification);
+        repaint (scaleArea);
+    }
 
     void resized() override
     {
@@ -214,6 +247,15 @@ public:
         r.removeFromLeft (10);
         freeze.setBounds (r.removeFromLeft (84)); r.removeFromLeft (4);
         delta.setBounds (r.removeFromLeft (70));
+        // à direita: ESCALA  (knob)  ±12 dB  [Auto]
+        auto s = r.removeFromRight (194);
+        scaleArea = s.expanded (0, 4);
+        autoBtn.setBounds (s.removeFromRight (48));
+        s.removeFromRight (6);
+        scaleValueArea = s.removeFromRight (54);
+        scaleKnob.setBounds (s.removeFromRight (26).withSizeKeepingCentre (26, 26));
+        scaleLabelArea = s;
+        r.removeFromRight (10);
         zoom.setBounds (r.removeFromRight (110));
     }
     void paint (juce::Graphics& g) override
@@ -222,6 +264,13 @@ public:
         g.fillRect (getLocalBounds());
         g.setColour (pal::lineSoft);
         g.drawHorizontalLine (getHeight() - 1, 0, (float) getWidth());
+        g.drawVerticalLine (scaleArea.getX() - 6, 6.0f, (float) getHeight() - 6.0f);
+        g.setFont (fonts::ui (10.5f, 1, 0.04f));
+        g.setColour (pal::textFaint.brighter (0.25f));
+        g.drawText (scaleLabel, scaleLabelArea.withTrimmedRight (6), juce::Justification::centredRight);
+        g.setFont (fonts::mono (11.5f));
+        g.setColour (scaleAuto ? pal::textDim : pal::text);
+        g.drawText (juce::String::fromUTF8 ("±") + juce::String (juce::roundToInt (scaleTarget)) + " dB", scaleValueArea, juce::Justification::centredLeft);
     }
 
 private:
@@ -237,6 +286,16 @@ private:
     }
     EQMotionProcessor& proc;
     juce::TextButton pre, post, sc, freeze, delta { "Delta" }, zoom { "Repor zoom" };
+    struct ScaleKnob : juce::Slider
+    {
+        std::function<void()> onDoubleClick;
+        void mouseDoubleClick (const juce::MouseEvent&) override { if (onDoubleClick) onDoubleClick(); }
+    } scaleKnob;
+    juce::TextButton autoBtn { "Auto" };
+    juce::Rectangle<int> scaleArea, scaleValueArea, scaleLabelArea;
+    juce::String scaleLabel { "ESCALA" };
+    float scaleShown = 12.0f, scaleTarget = 12.0f;
+    bool scaleAuto = true;
     std::unique_ptr<juce::ButtonParameterAttachment> deltaAtt;
     piradex::i18n::Binder lang;
 };

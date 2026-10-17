@@ -29,8 +29,13 @@ public:
     std::function<void (int)> onSelectionChanged;
 
     void setSmartPanelOpen (bool open) { smartOpen = open; repaint(); }
-    void setDbRange (float r);
-    float dbRange() const { return dbRangeVal; }
+    // escala vertical do gráfico: manual (±3…±30 dB) ou automática (±12 ↔ ±20 dB conforme os ganhos)
+    void setDbRange (float r);                      // valor fixo: desliga o modo automático
+    void setAutoScale (bool on);
+    bool isAutoScale() const { return autoScale; }
+    float dbRange() const { return dbRangeVal; }    // valor mostrado agora (anima entre escalas)
+    float dbRangeTarget() const { return dbTarget; }
+    std::function<void()> onScaleChanged;           // para o knob da barra acompanhar o modo automático
     void resetZoom();
     bool isZoomed() const { return std::abs (std::log (viewLo / 10.0)) > 0.01 || std::abs (std::log (viewHi / 30000.0)) > 0.01; }
 
@@ -42,6 +47,8 @@ private:
     void timerCallback() override;
     void rebuildCurves (bool force);
     void rebuildFreqs();
+    void updateAutoScale();
+    double peakGainDb() const;
 
     float xForFreq (double f) const;
     double freqForX (float x) const;
@@ -73,7 +80,8 @@ private:
 
     // vista
     double viewLo = 10.0, viewHi = 30000.0;
-    float dbRangeVal = 12.0f;
+    float dbRangeVal = 12.0f, dbTarget = 12.0f, dbManual = 12.0f;
+    bool autoScale = true;
     std::vector<double> freqs;
     bool smartOpen = false;
 

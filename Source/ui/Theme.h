@@ -305,6 +305,26 @@ public:
         const float ang = a0 + pos * (a1 - a0);
         const float th = juce::jmax (2.5f, rad * 0.13f);
 
+        if (rad < 16.0f)   // knob pequeno (barras): só arco, disco e ponteiro, legível a 24 px
+        {
+            juce::Path trk, v;
+            const float ar = rad - 1.5f;
+            trk.addCentredArc (c.x, c.y, ar, ar, 0, a0, a1, true);
+            g.setColour (pal::bg3.brighter (0.15f));
+            g.strokePath (trk, juce::PathStrokeType (2.5f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
+            v.addCentredArc (c.x, c.y, ar, ar, 0, a0, ang, true);
+            g.setColour (col);
+            g.strokePath (v, juce::PathStrokeType (2.5f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
+            const float br = ar - 4.0f;
+            g.setColour (pal::bg2.brighter (0.1f));
+            g.fillEllipse (c.x - br, c.y - br, br * 2, br * 2);
+            g.setColour (pal::line.brighter (0.2f));
+            g.drawEllipse (c.x - br, c.y - br, br * 2, br * 2, 1.0f);
+            g.setColour (s.isEnabled() ? pal::text : pal::textFaint);
+            g.drawLine ({ c, c.getPointOnCircumference (br - 1.5f, ang) }, 1.8f);
+            return;
+        }
+
         // corpo
         g.setGradientFill (juce::ColourGradient (pal::bg3.brighter (0.08f), c.x, c.y - rad, pal::bg1, c.x, c.y + rad, false));
         g.fillEllipse (c.x - rad + th + 2, c.y - rad + th + 2, (rad - th - 2) * 2, (rad - th - 2) * 2);

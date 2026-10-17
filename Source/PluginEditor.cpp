@@ -34,6 +34,10 @@ EQMotionEditor::EQMotionEditor (EQMotionProcessor& p)
     };
     inspector.onBandRemoved = [this] { select (-1); };
     abar.onResetZoom = [this] { graph.resetZoom(); };
+    abar.onScaleKnob = [this] (float v) { graph.setDbRange (v); };
+    abar.onScaleAuto = [this] (bool on) { graph.setAutoScale (on); };
+    graph.onScaleChanged = [this] { abar.showScale (graph.dbRange(), graph.dbRangeTarget(), graph.isAutoScale()); };
+    graph.onScaleChanged();
 
     top.onSmartToggle = [this] { openSmartOps (! smartOpen); };
     smartPanel.onClose = [this] { openSmartOps (false); };
@@ -46,7 +50,8 @@ EQMotionEditor::EQMotionEditor (EQMotionProcessor& p)
     top.onInstances = [this] (juce::Component& anchor) { showCallout (std::make_unique<InstancesPanel> (proc), anchor); };
     top.onSettings = [this] (juce::Component& anchor)
     {
-        auto s = std::make_unique<SettingsPanel> (proc, [this] (float sc) { setUiScale (sc); }, [this] (float r) { graph.setDbRange (r); }, graph.dbRange());
+        auto s = std::make_unique<SettingsPanel> (proc, [this] (float sc) { setUiScale (sc); }, [this] (float r) { if (r <= 0) graph.setAutoScale (true); else graph.setDbRange (r); },
+                                                     graph.isAutoScale() ? 0.0f : graph.dbRangeTarget());
         s->onLogout = [this] { updateLock(); };
         showCallout (std::move (s), anchor);
     };
