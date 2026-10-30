@@ -33,7 +33,15 @@ public:
 
     static License& get();
 
-    static bool inTrial() { return juce::Time::getCurrentTime() < juce::Time (2027, 0, 1, 0, 0, 0); } // aberto ate 31/12/2026
+    static bool inTrial()
+    {
+       #if defined (MXS_ALLOW_TEST_UNLOCK) || defined (ANL_ALLOW_TEST_UNLOCK) || defined (EQM_ALLOW_TEST_UNLOCK) \
+        || defined (DLX_ALLOW_TEST_UNLOCK) || defined (ROOMX_ALLOW_TEST_UNLOCK) || defined (PIRADEX_NO_TRIAL)
+        return false;   // nas builds de teste o trial fica desligado (para testar o bloqueio)
+       #else
+        return juce::Time::getCurrentTime() < juce::Time (2027, 0, 1, 0, 0, 0); // aberto ate 31/12/2026
+       #endif
+    }
     bool   isUnlocked() const  { return unlocked.load() || inTrial(); }
     Kind   kind() const        { return currentKind; }
     juce::String statusText() const;       // ex.: "BETA · válida até 31/12/2026"
