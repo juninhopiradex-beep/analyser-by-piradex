@@ -11,32 +11,18 @@ namespace lic
 static const KeyEntry kKeys[] =
 {
     { "master", Kind::Master,
-      "283abc210a5887cd63f1f8f4227c394f",
-      "086af2479ad81e006c788f87a64881befecb208076dd0d6ecdb049e111831dbe", 0, 0, 0 },
+      "4fdb5522f2eeb6c99a12ad4f48c6f807",
+      "875ec152cadddcd18e726ec26fb80b0071e91faa14bced2f7ad1921095b24617", 0, 0, 0 },
 
-    { "beta-1", Kind::Trial,
-      "4be5dd53270dacfb8e40522cd87fcd1b",
-      "b34bbab9025bc83fba849d76806c8f07bf8e4d357562950b42c23a8b16c5f816", 2026, 12, 31 },
-
-    { "beta-2", Kind::Trial,
-      "ef7e781d0bcf1c3370167ad9c638fc5b",
-      "93ee1df21e1d40d4084fb94c71cd64d7d8217aeb87609b3e6cb40e3e903b8cd1", 2026, 12, 31 },
-
-    { "beta-3", Kind::Trial,
-      "7b2e312707a85495582dc84c9235ecd9",
-      "13c10474f12947e4a602de84feb388ec77dc334e1ca974f16aee9cb07ae6b58f", 2026, 12, 31 },
-
-    { "beta-4", Kind::Trial,
-      "249ce027b4f30171e516bb62a2c0adda",
-      "c66c3680aed7e549ecdc4d44ad9fd54c92876134a5cdf319635575e3e79a63ac", 2026, 12, 31 },
-
-    { "beta-5", Kind::Trial,
-      "24ea1fbf31b3009431923420ac70bdd6",
-      "9885b1b2dfa6ffdc06402524f0d8e9315099c0728f9f56c17c3d9dade49dc56a", 2026, 12, 31 },
-
-    { "promo-loja", Kind::Trial,
-      "ce6d515ca53e53c7833a604fd0e51aa8",
-      "be7be21837b7c318edb91276c6e0b080292045e0b3f0303b88b70a1733467c9f", 2026, 11, 1 },
+    { "beta-01", Kind::Trial,
+      "e2ab7c3201c177599ffbf34f8110fd2d",
+      "bb43966f8080610d5885be8f6cfc96749ad2236b6b2dd9a31c292cd18bd86b17", 2026, 12, 31 },
+    { "beta-02", Kind::Trial,
+      "86c5bc55085bc4bc4418ea35bfc81947",
+      "7d120bb78661c4f7d13e061d1cf4536cff816927eceefe8ba4d3e5ed86dcaeac", 2026, 12, 31 },
+    { "beta-03", Kind::Trial,
+      "e46d0b3880487e9f83bbfffa787c0e90",
+      "8a9291ec8d7f00de1232e397c0158d98dc72631222db2700b710073977f19d9b", 2026, 12, 31 },
 };
 
 // ---------------------------------------------------------------------------
