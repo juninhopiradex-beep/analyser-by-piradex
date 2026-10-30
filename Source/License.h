@@ -33,7 +33,8 @@ public:
 
     static License& get();
 
-    bool   isUnlocked() const  { return unlocked.load(); }
+    static bool inTrial() { return juce::Time::getCurrentTime() < juce::Time (2027, 0, 1, 0, 0, 0); } // aberto ate 31/12/2026
+    bool   isUnlocked() const  { return unlocked.load() || inTrial(); }
     Kind   kind() const        { return currentKind; }
     juce::String statusText() const;       // ex.: "BETA · válida até 31/12/2026"
 
