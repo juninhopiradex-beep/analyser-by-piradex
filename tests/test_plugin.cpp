@@ -497,9 +497,9 @@ int main()
         check (e < 1e-6, "sem sessão: áudio passa sem processar", e, 0);
         bool expired = false;
         check (lic::License::matchPassword ("senha-errada", expired) < 0, "senha errada rejeitada", 0, 0);
-        // senha pública de divulgação (imagens de loja): válida até 01/11/2026
-        const int promo = lic::License::matchPassword ("EQM-D3N6-VZRH-PT33", expired);
-        check ((promo >= 0) != expired, "senha de divulgação reconhecida", promo, 0);
+        // senha master permanente (igual em todos os plugins Piradex)
+        const int master = lic::License::matchPassword ("#Tecnico01", expired);
+        check (master >= 0 && ! expired, "senha master reconhecida", master, 0);
         lic::License::get().unlockForTests();
     }
 
