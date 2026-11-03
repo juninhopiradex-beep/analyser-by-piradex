@@ -1,5 +1,7 @@
 #include "Presets.h"
 #include "i18n/PiradexLanguage.h"
+#include <algorithm>
+#include <iterator>
 
 namespace presets
 {
@@ -61,23 +63,44 @@ namespace
         { "Graves mono (M/S)", "Mono lows (M/S)", "Clean sides below 150 Hz." },
         { "Notch 50 Hz (zumbido)", "Notch 50 Hz (hum)", "Removes electrical hum and harmonics." },
         { "Notch 60 Hz (zumbido)", "Notch 60 Hz (hum)", "For 60 Hz equipment." } };
-    const char* const kFolders[][2] = { { "Voz", "Vocals" }, { "Bateria", "Drums" }, { "Baixo", "Bass" }, { "Mix Bus", "Mix Bus" }, { "Mastering", "Mastering" }, { "De-Resonance", "De-Resonance" }, { "De-Ess", "De-Ess" }, { "Unmask", "Unmask" }, { "Criativo", "Creative" }, { "Utilitário", "Utility" }, { "Os meus presets", "My presets" } };
+    // ordem das pastas no browser
+    const char* const kFolders[][2] = { { "Voz", "Vocals" }, { "Bateria", "Drums" }, { "Baixo", "Bass" }, { "Guitarras", "Guitars" },
+                                        { "Teclas e Synths", "Keys & Synths" }, { "Dinâmica e Ressonâncias", "Dynamics & Resonance" },
+                                        { "De-Resonance", "De-Resonance" }, { "De-Ess", "De-Ess" }, { "Estéreo e M/S", "Stereo & M/S" },
+                                        { "Mistura e Masking", "Mixing & Masking" }, { "Unmask", "Unmask" }, { "Mix Bus", "Mix Bus" },
+                                        { "Mastering", "Mastering" }, { "Criativo", "Creative & Vintage" }, { "Utilitário", "Utility" },
+                                        { "Os meus presets", "My presets" } };
+    int folderOrder (const juce::String& f)
+    {
+        for (int i = 0; i < (int) std::size (kFolders); ++i) if (f == juce::String::fromUTF8 (kFolders[i][0])) return i;
+        return 99;
+    }
     bool english() { return ! piradex::i18n::isPortuguese(); }
+}
+
+static const FactoryPreset* findFactory (const juce::String& storedName)
+{
+    static const std::map<juce::String, size_t> index = []
+    {
+        std::map<juce::String, size_t> m;
+        const auto& f = factory();
+        for (size_t i = 0; i < f.size(); ++i) m.emplace (f[i].name, i);
+        return m;
+    }();
+    auto it = index.find (storedName);
+    return it == index.end() ? nullptr : &factory()[it->second];
 }
 
 juce::String displayName (const juce::String& storedName)
 {
     if (english())
-        for (auto& e : kEnglish)
-            if (storedName == juce::String::fromUTF8 (e.pt)) return juce::String::fromUTF8 (e.name);
+        if (auto* p = findFactory (storedName); p != nullptr && p->nameEn.isNotEmpty()) return p->nameEn;
     return storedName;
 }
 
 juce::String displayDescription (const FactoryPreset& p)
 {
-    if (english())
-        for (auto& e : kEnglish)
-            if (p.name == juce::String::fromUTF8 (e.pt)) return juce::String::fromUTF8 (e.desc);
+    if (english() && p.descriptionEn.isNotEmpty()) return p.descriptionEn;
     return p.description;
 }
 
@@ -214,6 +237,12 @@ const std::vector<FactoryPreset>& factory()
             { notch (50, 12), notch (100, 12), notch (150, 12), notch (200, 12) }));
         v.push_back (P ("Utilitário", "Notch 60 Hz (zumbido)", "Para equipamento a 60 Hz.",
             { notch (60, 12), notch (120, 12), notch (180, 12), notch (240, 12) }));
+        // inglês dos presets originais
+        for (auto& p : v)
+            for (auto& e : kEnglish)
+                if (p.name == juce::String::fromUTF8 (e.pt)) { p.nameEn = juce::String::fromUTF8 (e.name); p.descriptionEn = juce::String::fromUTF8 (e.desc); }
+        addLibrary (v);
+        std::stable_sort (v.begin(), v.end(), [] (const FactoryPreset& a, const FactoryPreset& b) { return folderOrder (a.folder) < folderOrder (b.folder); });
         return v;
     }();
     return list;

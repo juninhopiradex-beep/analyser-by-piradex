@@ -16,7 +16,20 @@
 
 namespace eqm
 {
-enum class SmartOp : int { Deresonate = 0, DeEss, AutoCut, MatchReference, Unmask, TonalBalance, NumOps };
+// A ordem do enum é guardada nas sessões: novas operações só no fim
+enum class SmartOp : int { Deresonate = 0, DeEss, AutoCut, MatchReference, Unmask, TonalBalance,
+                           Mud, Boxy, Harsh, LowEnd, Presence, Air, Warmth, Hum, AutoDynamic, NumOps };
+
+// Ordem e grupos no menu (−1 = início de grupo seguinte)
+struct SmartOpGroup { const char* pt; const char* en; std::vector<SmartOp> ops; };
+inline const std::vector<SmartOpGroup>& smartOpGroups()
+{
+    static const std::vector<SmartOpGroup> g {
+        { "Corrigir", "Fix", { SmartOp::Deresonate, SmartOp::DeEss, SmartOp::Mud, SmartOp::Boxy, SmartOp::Harsh, SmartOp::Hum, SmartOp::AutoCut } },
+        { "Dinâmica", "Dynamics", { SmartOp::LowEnd, SmartOp::AutoDynamic, SmartOp::Unmask } },
+        { "Realçar e equilibrar", "Enhance and balance", { SmartOp::Presence, SmartOp::Air, SmartOp::Warmth, SmartOp::TonalBalance, SmartOp::MatchReference } } };
+    return g;
+}
 
 // Idioma dos textos gerados (o editor/processador acerta-o com o idioma da interface)
 inline std::atomic<bool>& smartEnglish() { static std::atomic<bool> e { false }; return e; }
@@ -32,6 +45,15 @@ inline const char* smartOpName (SmartOp op)
         case SmartOp::MatchReference: return SL ("Igualar referência", "Match reference");
         case SmartOp::Unmask:         return SL ("Unmask (abrir espaço)", "Unmask (make room)");
         case SmartOp::TonalBalance:   return SL ("Equilíbrio tonal", "Tonal balance");
+        case SmartOp::Mud:            return SL ("Limpar lama (graves-médios)", "Clean mud (low mids)");
+        case SmartOp::Boxy:           return SL ("Caixa e nasal (médios)", "Boxy and nasal (mids)");
+        case SmartOp::Harsh:          return SL ("Domar dureza (médios-agudos)", "Tame harshness (upper mids)");
+        case SmartOp::LowEnd:         return SL ("Controlar graves (boom)", "Control low end (boom)");
+        case SmartOp::Presence:       return SL ("Realçar presença", "Add presence");
+        case SmartOp::Air:            return SL ("Realçar ar", "Add air");
+        case SmartOp::Warmth:         return SL ("Realçar calor", "Add warmth");
+        case SmartOp::Hum:            return SL ("Remover zumbido (50/60 Hz)", "Remove hum (50/60 Hz)");
+        case SmartOp::AutoDynamic:    return SL ("Auto dinâmico (domar picos)", "Auto dynamic (tame peaks)");
         default: return "";
     }
 }
@@ -42,6 +64,14 @@ inline void smartOpDefaultRange (SmartOp op, double& from, double& to)
     {
         case SmartOp::DeEss:  from = 4000; to = 12000; break;
         case SmartOp::Unmask: from = 120;  to = 8000;  break;
+        case SmartOp::Mud:      from = 120;  to = 600;   break;
+        case SmartOp::Boxy:     from = 400;  to = 2000;  break;
+        case SmartOp::Harsh:    from = 2000; to = 8000;  break;
+        case SmartOp::LowEnd:   from = 20;   to = 250;   break;
+        case SmartOp::Presence: from = 1200; to = 6000;  break;
+        case SmartOp::Air:      from = 7000; to = 20000; break;
+        case SmartOp::Warmth:   from = 80;   to = 450;   break;
+        case SmartOp::Hum:      from = 20;   to = 1000;  break;
         default:              from = 20;   to = 20000; break;
     }
 }
@@ -386,6 +416,133 @@ inline std::vector<BandParams> fitResidual (std::vector<double> res, const Smart
     }
     return out;
 }
+
+inline double tonalTarget (double f) { return -4.5 * std::log2 (f / 1000.0); }   // potência por bin em misturas equilibradas
+
+// mediana de v nos índices da grelha entre f0 e f1
+inline double medianBetween (const std::vector<double>& v, double f0, double f1)
+{
+    std::vector<double> w;
+    for (int i = 0; i < (int) v.size(); ++i) { const double f = LogGrid::freq (i); if (f >= f0 && f <= f1) w.push_back (v[(size_t) i]); }
+    if (w.empty()) return 0.0;
+    std::nth_element (w.begin(), w.begin() + (long) w.size() / 2, w.end());
+    return w[w.size() / 2];
+}
+
+// valor (dB) de v interpolado na frequência f
+inline double atFreq (const std::vector<double>& v, double f)
+{
+    const double x = clampv (LogGrid::index (f), 0.0, (double) v.size() - 1.001);
+    const int i = (int) x; const double a = x - i;
+    return v[(size_t) i] * (1 - a) + v[(size_t) i + 1] * a;
+}
+
+// nível (dB) por trama de uma zona ±halfOct à volta de f, a partir das bandas de 1/12 oct
+inline std::vector<double> zoneSeries (const LearnResult& r, double f, double halfOct)
+{
+    std::vector<double> out;
+    if (r.frames == 0 || r.mainRows.empty()) return out;
+    const double jc = std::log2 (f / 20.0) * 12.0;
+    const int j0 = clampv ((int) std::floor (jc - halfOct * 12.0 + 0.5), 0, TwelfthBands::kCount - 1);
+    const int j1 = clampv ((int) std::floor (jc + halfOct * 12.0 + 0.5), j0, TwelfthBands::kCount - 1);
+    out.reserve ((size_t) r.frames);
+    for (int t = 0; t < r.frames; ++t)
+    {
+        double p = 0;
+        for (int j = j0; j <= j1; ++j) p += std::pow (10.0, r.rowDb (r.mainRows, t, j) / 10.0);
+        out.push_back (10.0 * std::log10 (p + 1e-24));
+    }
+    return out;
+}
+
+inline BandParams dynCut (BandParams b, double rangeDb, double ratio, double atk, double rel)
+{
+    b.dynamic = true; b.direction = DynDirection::Above; b.rangeDb = rangeDb; b.ratio = ratio;
+    b.attackMs = atk; b.releaseMs = rel; b.kneeDb = 6.0; b.detMode = DetectorMode::RMS; b.source = DetectorSource::Internal;
+    return b;
+}
+
+// limiar a partir da distribuição real do detetor: atua só na fração (1 − pct) mais alta do tempo
+inline void calibrate (BandParams& b, const LearnResult& r, double pct)
+{
+    const auto ser = r.detectorSeries (b, false);
+    b.thresholdDb = std::round (LearnResult::percentile (ser, pct) * 2.0) / 2.0;
+}
+
+// Excesso local (saliência face à mediana de ±1 oitava) numa zona → 1–2 sinos dinâmicos
+struct ZoneSpec { double lo, hi, minQ, maxQ, maxCut, attack, release, pct; int maxBands; const char* wherePt; const char* whereEn; const char* nonePt; const char* noneEn; };
+inline void zoneExcess (const LearnResult& r, const SmartSettings& s, const ZoneSpec& z, SmartSuggestion& out)
+{
+    const int G = (int) r.mainDb.size();
+    const auto s6 = smooth (r.mainDb, 1.0 / 6.0);
+    const auto base = movingMedian (s6, LogGrid::kPerOct);   // ±1 oitava
+    double maxLvl = -300; for (double v : s6) maxLvl = std::max (maxLvl, v);
+    const double lo = std::max (z.lo, s.fromHz), hi = std::min (z.hi, s.toHz);
+    std::vector<double> ex ((size_t) G, 0.0);
+    for (int i = 0; i < G; ++i) ex[(size_t) i] = std::max (0.0, s6[(size_t) i] - base[(size_t) i]);
+    std::vector<std::pair<double, int>> peaks;
+    for (int i = 2; i < G - 2; ++i)
+    {
+        const double f = LogGrid::freq (i);
+        if (f < lo || f > hi || s6[(size_t) i] < maxLvl - 45.0) continue;
+        if (ex[(size_t) i] >= 1.5 && ex[(size_t) i] >= ex[(size_t) i - 1] && ex[(size_t) i] > ex[(size_t) i + 1]) peaks.push_back ({ ex[(size_t) i], i });
+    }
+    std::sort (peaks.rbegin(), peaks.rend());
+    const double amt = std::max (0.05, clampv (s.amount, 0.0, 1.0));
+    std::vector<std::string> where;
+    for (auto& [e, i] : peaks)
+    {
+        if ((int) out.bands.size() >= z.maxBands) break;
+        const double f = LogGrid::freq (i);
+        bool close = false;
+        for (auto& b : out.bands) if (std::abs (std::log2 (b.freq / f)) < 2.0 / 3.0) close = true;
+        if (close || (! out.bands.empty() && e < 2.0)) continue;
+        const double q = clampv (qFromWidth (widthOct (ex, i)), z.minQ, z.maxQ);
+        auto b = dynCut (bell (f, 0, q), -clampv (e * 1.2, 1.5, z.maxCut) * amt, 3.0, z.attack, z.release);
+        calibrate (b, r, z.pct);
+        out.bands.push_back (b);
+        where.push_back (hz (f));
+    }
+    if (out.bands.empty()) { out.summary = SL (z.nonePt, z.noneEn); return; }
+    std::sort (out.bands.begin(), out.bands.end(), [] (const BandParams& a, const BandParams& b) { return a.freq < b.freq; });
+    out.summary = dynBandsWord (out.bands.size()) + " · " + SL (z.wherePt, z.whereEn);
+    for (size_t k = 0; k < where.size(); ++k) out.summary += (k ? ", " : " ") + where[k];
+}
+
+// Falta de energia face ao equilíbrio médio de misturas numa zona → realce estático suave
+struct BoostSpec { double lo, hi, cLo, cHi, maxGain, q; FilterType type; const char* whatPt; const char* whatEn; const char* nonePt; const char* noneEn; };
+inline void zoneDeficit (const LearnResult& r, const SmartSettings& s, const BoostSpec& z, SmartSuggestion& out)
+{
+    const int G = (int) r.mainDb.size();
+    const auto m = smooth (r.mainDb, 1.0 / 3.0);
+    std::vector<double> d ((size_t) G);
+    for (int i = 0; i < G; ++i) d[(size_t) i] = tonalTarget (LogGrid::freq (i)) - m[(size_t) i];
+    const double ref = medianBetween (d, 250.0, 4000.0);
+    for (auto& v : d) v -= ref;
+    const auto d1 = smooth (d, 1.0);
+    double maxLvl = -300; for (double v : m) maxLvl = std::max (maxLvl, v);
+    const double lo = std::max (z.lo, s.fromHz), hi = std::min (z.hi, s.toHz);
+    int best = -1; double sum = 0; int c = 0;
+    for (int i = 0; i < G; ++i)
+    {
+        const double f = LogGrid::freq (i);
+        if (f < lo || f > hi) continue;
+        if (m[(size_t) i] < maxLvl - 60.0) continue;             // sem conteúdo: não realça ruído
+        sum += d[(size_t) i]; ++c;
+        if (f >= z.cLo && f <= z.cHi && (best < 0 || d1[(size_t) i] > d1[(size_t) best])) best = i;
+    }
+    const double avg = c ? sum / c : 0.0;
+    if (best < 0 || avg < 1.0 || c < 8) { out.summary = SL (z.nonePt, z.noneEn); return; }
+    const double g = clampv (avg, 0.0, z.maxGain) * clampv (s.amount, 0.0, 1.0);
+    if (g < 0.3) { out.summary = SL (z.nonePt, z.noneEn); return; }
+    BandParams b = bell (z.type == FilterType::HighShelf ? clampv (LogGrid::freq (best) / 1.4, std::max (lo, z.cLo), std::min (hi, z.cHi)) : LogGrid::freq (best), g, z.q);
+    b.type = z.type;
+    out.bands.push_back (b);
+    char buf[64]; std::snprintf (buf, sizeof buf, "+%.1f dB", g);
+    std::string gs (buf); for (auto& ch : gs) if (ch == '.' && ! smartEnglish().load()) ch = ',';
+    out.summary = std::string (SL (z.whatPt, z.whatEn)) + " " + gs + SL (" em ", " at ") + hz (b.freq)
+                + SL (" · falta média de ", " · average shortfall ") + std::to_string ((int) std::round (avg)) + " dB";
+}
 } // namespace smartdetail
 
 inline SmartSuggestion suggest (const LearnResult& r, const SmartSettings& s)
@@ -654,6 +811,150 @@ inline SmartSuggestion suggest (const LearnResult& r, const SmartSettings& s)
             std::sort (out.bands.begin(), out.bands.end(), [] (const BandParams& a, const BandParams& b) { return a.freq < b.freq; });
             out.summary = dynBandsWord (out.bands.size()) + SL (" pelo sidechain · ", " keyed by the sidechain · ");
             for (size_t i = 0; i < where.size(); ++i) out.summary += (i ? ", " : "") + where[i];
+            break;
+        }
+
+        case SmartOp::Mud:
+            zoneExcess (r, s, { 100, 700, 0.7, 2.5, 6.0, 15.0, 160.0, 0.55, 2, "lama em", "mud at",
+                                "Sem acumulação nos graves-médios.", "No build-up in the low mids." }, out);
+            break;
+        case SmartOp::Boxy:
+            zoneExcess (r, s, { 350, 2500, 1.0, 4.0, 6.0, 8.0, 100.0, 0.55, 2, "caixa/nasal em", "boxiness/nasal at",
+                                "Sem caixa nem nasalidade salientes.", "No prominent boxiness or nasal tone." }, out);
+            break;
+        case SmartOp::Harsh:
+            zoneExcess (r, s, { 1800, 9000, 1.2, 4.0, 6.0, 3.0, 70.0, 0.6, 2, "dureza em", "harshness at",
+                                "Sem dureza saliente nos médios-agudos.", "No prominent harshness in the upper mids." }, out);
+            break;
+
+        case SmartOp::Presence:
+            zoneDeficit (r, s, { 1200, 6000, 2000, 5000, 4.0, 0.9, FilterType::Bell, "Presença", "Presence",
+                                 "Já tem presença suficiente face ao equilíbrio médio.", "Already has enough presence compared with the average balance." }, out);
+            break;
+        case SmartOp::Air:
+            zoneDeficit (r, s, { 7000, 20000, 8000, 12000, 5.0, 0.7, FilterType::HighShelf, "Ar", "Air",
+                                 "Já tem ar suficiente (ou não há conteúdo nos agudos para realçar).", "Already has enough air (or there is no top-end content to lift)." }, out);
+            break;
+        case SmartOp::Warmth:
+            zoneDeficit (r, s, { 80, 450, 150, 300, 3.0, 0.8, FilterType::Bell, "Calor", "Warmth",
+                                 "Já tem calor suficiente — se soa embolado, experimente Limpar lama.", "Already warm enough — if it sounds muddy, try Clean mud." }, out);
+            break;
+
+        case SmartOp::LowEnd:
+        {
+            const double lo = std::max (30.0, s.fromHz), hi = std::min (250.0, s.toHz);
+            if (hi <= lo * 1.2) { out.summary = SL ("Escolha uma zona de graves (abaixo de 250 Hz).", "Choose a low-frequency range (below 250 Hz)."); return out; }
+            const auto s6 = smooth (r.mainDb, 1.0 / 6.0);
+            const auto base = movingMedian (s6, LogGrid::kPerOct);
+            int bi = -1;
+            for (int i = 0; i < G; ++i) { const double f = LogGrid::freq (i); if (f >= lo && f <= hi && (bi < 0 || s6[(size_t) i] > s6[(size_t) bi])) bi = i; }
+            if (bi < 0) return out;
+            const double f = LogGrid::freq (bi), bump = std::max (0.0, s6[(size_t) bi] - base[(size_t) bi]);
+            std::vector<double> ex ((size_t) G); for (int i = 0; i < G; ++i) ex[(size_t) i] = std::max (0.0, s6[(size_t) i] - base[(size_t) i]);
+            const double q = bump > 1.0 ? clampv (qFromWidth (widthOct (ex, bi)), 0.8, 2.5) : 1.0;
+            auto b = dynCut (bell (f, 0, q), -2.0, 3.0, 10.0, 140.0);
+            const auto ser = r.detectorSeries (b, false);
+            const double p50 = LearnResult::percentile (ser, 0.5), p90 = LearnResult::percentile (ser, 0.9);
+            const double swing = p90 - p50;
+            if (swing < 3.0 && bump < 2.0) { out.summary = SL ("Graves estáveis — nada a controlar.", "Stable low end — nothing to control."); return out; }
+            const double amt = std::max (0.05, clampv (s.amount, 0.0, 1.0));
+            b.rangeDb = -clampv (0.6 * swing + 0.5 * bump, 2.0, 8.0) * amt;
+            b.thresholdDb = std::round (LearnResult::percentile (ser, 0.6) * 2.0) / 2.0;
+            out.bands.push_back (b);
+            out.summary = dynBandsWord (1) + SL (" · boom em ", " · boom at ") + hz (f) + SL (" · varia ", " · swings ") + std::to_string ((int) std::round (swing)) + " dB";
+            break;
+        }
+
+        case SmartOp::Hum:
+        {
+            const auto base = r.mainDb;
+            int bestBase = 0; double bestScore = 0; std::vector<std::pair<double, double>> bestList;
+            for (int f0 : { 50, 60 })
+            {
+                std::vector<std::pair<double, double>> list; double score = 0; int strong = 0;
+                for (int k = 1; k <= 12; ++k)
+                {
+                    const double f = f0 * k;
+                    if (f > std::min (1000.0, s.toHz) || f < s.fromHz) continue;
+                    double pk = -300; for (double g2 = f * 0.985; g2 <= f * 1.015; g2 *= 1.002) pk = std::max (pk, atFreq (base, g2));
+                    const double floorDb = 0.5 * (atFreq (base, f - f0 * 0.5) + atFreq (base, f + f0 * 0.5));
+                    const double prom = pk - floorDb;
+                    if (prom >= 5.0) { list.push_back ({ f, prom }); score += prom; if (prom >= 8.0) ++strong; }
+                }
+                if (strong >= 1 && list.size() >= 2 && score > bestScore) { bestScore = score; bestBase = f0; bestList = list; }
+            }
+            if (bestBase == 0) { out.summary = SL ("Sem zumbido de 50/60 Hz detetado.", "No 50/60 Hz hum detected."); return out; }
+            // o zumbido é estacionário; uma nota de baixo sustentada varia ao longo do tempo
+            {
+                auto probe = bell (bestList.front().first, 0, 20.0); probe.detMode = DetectorMode::RMS;
+                const auto ser = r.detectorSeries (probe, false);
+                if (LearnResult::percentile (ser, 0.9) - LearnResult::percentile (ser, 0.1) > 8.0)
+                { out.summary = SL ("Há um pico em 50/60 Hz mas varia como uma nota musical — não é zumbido.", "There is a 50/60 Hz peak but it moves like a musical note — not hum."); return out; }
+            }
+            const double amt = std::max (0.05, clampv (s.amount, 0.0, 1.0));
+            std::sort (bestList.begin(), bestList.end(), [] (auto& a, auto& b) { return a.second > b.second; });
+            for (auto& [f, prom] : bestList)
+            {
+                if (out.bands.size() >= 8) break;
+                out.bands.push_back (bell (f, -clampv (prom + 3.0, 4.0, 30.0) * amt, clampv (f / 3.0, 12.0, 40.0)));
+            }
+            std::sort (out.bands.begin(), out.bands.end(), [] (const BandParams& a, const BandParams& b) { return a.freq < b.freq; });
+            out.summary = bandsWord (out.bands.size()) + SL (" · zumbido de ", " · hum at ") + std::to_string (bestBase) + SL (" Hz e harmónicos", " Hz and harmonics");
+            break;
+        }
+
+        case SmartOp::AutoDynamic:
+        {
+            // variação de cada zona (1/3 oct) face à variação do sinal todo: picos tonais que vêm e vão
+            std::vector<double> total ((size_t) r.frames);
+            for (int t = 0; t < r.frames; ++t)
+            {
+                double p = 0; for (int j = 0; j < TwelfthBands::kCount; ++j) p += std::pow (10.0, r.rowDb (r.mainRows, t, j) / 10.0);
+                total[(size_t) t] = 10.0 * std::log10 (p + 1e-24);
+            }
+            const double vTot = LearnResult::percentile (total, 0.95) - LearnResult::percentile (total, 0.5);
+            struct Z { double f, rel, top; };
+            std::vector<Z> zs; double topMax = -300;
+            for (double f = 40.0; f <= 16000.0; f *= std::pow (2.0, 1.0 / 3.0))
+            {
+                if (! inRange (f, s)) continue;
+                auto raw = zoneSeries (r, f, 1.0 / 6.0);
+                // média de potência em 3 tramas (~130 ms) para não confundir a flutuação estatística com picos
+                std::vector<double> ser (raw.size());
+                for (size_t t = 0; t < raw.size(); ++t)
+                {
+                    double p = 0; int c = 0;
+                    for (size_t u = t > 0 ? t - 1 : 0; u <= std::min (raw.size() - 1, t + 1); ++u) { p += std::pow (10.0, raw[u] / 10.0); ++c; }
+                    ser[t] = 10.0 * std::log10 (p / c + 1e-24);
+                }
+                // flutuação esperada de ruído estacionário com tão poucos bins de FFT nesta zona
+                const double bins = std::max (1.0, f * (std::pow (2.0, 1.0 / 6.0) - std::pow (2.0, -1.0 / 6.0)) / (r.fs / LearnResult::kN));
+                const double noiseSpread = 10.0 * std::log10 (1.0 + 1.645 / std::sqrt (bins * 1.5));
+                const double top = LearnResult::percentile (ser, 0.95);
+                zs.push_back ({ f, top - LearnResult::percentile (ser, 0.5) - vTot - noiseSpread, top });
+                topMax = std::max (topMax, top);
+            }
+            std::sort (zs.begin(), zs.end(), [] (const Z& a, const Z& b) { return a.rel > b.rel; });
+            const double amt = std::max (0.05, clampv (s.amount, 0.0, 1.0));
+            std::vector<std::string> where;
+            for (auto& z : zs)
+            {
+                if (out.bands.size() >= 4) break;
+                if (z.rel < 3.0) break;
+                if (z.top < topMax - 40.0) continue;
+                bool close = false;
+                for (auto& b : out.bands) if (std::abs (std::log2 (b.freq / z.f)) < 1.0) close = true;
+                if (close) continue;
+                auto b = dynCut (bell (z.f, 0, 1.4), -clampv (z.rel * 0.8, 2.0, 6.0) * amt, 3.0, 8.0, 120.0);
+                b.kneeDb = 4.0;
+                calibrate (b, r, 0.7);
+                out.bands.push_back (b);
+                where.push_back (hz (z.f));
+            }
+            if (out.bands.empty()) { out.summary = SL ("Nenhuma zona varia muito mais do que o resto do sinal.", "No range swings much more than the rest of the signal."); return out; }
+            std::sort (out.bands.begin(), out.bands.end(), [] (const BandParams& a, const BandParams& b) { return a.freq < b.freq; });
+            out.summary = dynBandsWord (out.bands.size()) + SL (" · picos em ", " · peaks at ");
+            for (size_t k = 0; k < where.size(); ++k) out.summary += (k ? ", " : "") + where[k];
             break;
         }
         default: break;

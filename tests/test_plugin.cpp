@@ -5,6 +5,7 @@
 #include "PluginEditor.h"
 #include <cstdio>
 #include <random>
+#include <set>
 #include <chrono>
 
 using namespace eqm;
@@ -550,6 +551,23 @@ int main()
             else std::printf ("    preset com problema: %s\n", pr.name.toRawUTF8());
         }
         check (ok == (int) presets::factory().size(), "presets de fábrica carregam e processam", ok, (double) presets::factory().size());
+        {   // biblioteca 2.1: 46 originais + 200, nomes únicos, textos nos dois idiomas, pastas pela ordem certa
+            const auto& f = presets::factory();
+            check (f.size() == 246, "presets de fábrica (46 + 200)", (int) f.size(), 246);
+            std::set<juce::String> names; int bilingual = 0;
+            for (auto& pr : f) { names.insert (pr.name); bilingual += pr.nameEn.isNotEmpty() && pr.descriptionEn.isNotEmpty() && pr.description.isNotEmpty(); }
+            check (names.size() == f.size(), "nomes de presets únicos", (int) names.size(), (int) f.size());
+            check (bilingual == (int) f.size(), "todos os presets com nome e descrição PT/EN", bilingual, (int) f.size());
+            check (f.front().folder == "Voz" && f[1].name == juce::String::fromUTF8 ("Voz rap presente"), "pastas ordenadas (Voz primeiro, originais à frente)", 1, 1);
+            int lastOrder = -1; bool sorted = true; juce::StringArray seen;
+            for (auto& pr : f) if (! seen.contains (pr.folder)) seen.add (pr.folder);
+            check (seen.size() == 15, "15 pastas de fábrica", seen.size(), 15);
+            juce::ignoreUnused (lastOrder, sorted);
+            piradex::i18n::set (piradex::i18n::Language::EN, false);
+            check (presets::displayName (juce::String::fromUTF8 ("Clareza vocal")) == "Vocal Clarity", "nome da biblioteca em inglês", 1, 1);
+            check (presets::displayFolder (juce::String::fromUTF8 ("Teclas e Synths")) == "Keys & Synths", "pasta nova em inglês", 1, 1);
+            piradex::i18n::set (piradex::i18n::Language::PT, false);
+        }
         // preset do utilizador
         p->state.loadFactory (presets::factory()[1]);
         check (p->state.saveUser ("Teste EQMotion"), "guardar preset do utilizador", 1, 1);
@@ -594,6 +612,46 @@ int main()
         check (p->state.band (0).type == FilterType::LowShelf, "edição manual anterior intacta", 1, 1);
         p->state.undo();   // desfaz o Reverter (um passo)
         check (p->state.activeBandCount() == 2 + n, "Reverter é um passo de desfazer", p->state.activeBandCount(), 2 + n);
+
+        // 2.1: a aprendizagem fica depois de Aplicar e serve outras operações
+        check (p->smart.appliedLock && ! p->smart.suggestion.ok && p->smart.hasResult, "depois de Aplicar a sugestão fica marcada e a aprendizagem fica", 1, 1);
+        p->smart.amount = 0.8; p->smartRecompute();
+        check (! p->smart.suggestion.ok, "mexer na intensidade não volta a propor o que já foi aplicado", 1, 1);
+        p->smartSetOp (SmartOp::Harsh);
+        check (! p->smart.appliedLock && p->smart.message.isNotEmpty(), "outra operação reutiliza a aprendizagem", 1, 1);
+        p->smartSetOp (SmartOp::Deresonate);
+        check (p->smart.suggestion.ok, "volta a sugerir sem aprender de novo", (int) p->smart.suggestion.bands.size(), 1);
+
+        // painel no tamanho mínimo da janela: Aplicar visível, sem sobreposição, e o clique funciona
+        {
+            piradex::i18n::set (piradex::i18n::Language::PT, false);
+            std::unique_ptr<juce::AudioProcessorEditor> ed (p->createEditor());
+            ed->setSize (1100, 680);
+            auto* e = dynamic_cast<EQMotionEditor*> (ed.get());
+            e->openSmartOps (true);
+            pump (150);
+            SmartOpsPanel* panel = nullptr;
+            for (auto* c : e->getChildren()) if (auto* sp = dynamic_cast<SmartOpsPanel*> (c)) panel = sp;
+            juce::TextButton* applyBtn = nullptr; juce::TextButton* learnBtn = nullptr;
+            if (panel != nullptr)
+                for (auto* c : panel->getChildren())
+                    if (auto* tb = dynamic_cast<juce::TextButton*> (c))
+                    {
+                        if (tb->getButtonText() == "Aplicar" || tb->getButtonText() == "Apply") applyBtn = tb;
+                        if (tb->getButtonText().startsWith ("Aprender") || tb->getButtonText().startsWith ("Learn")) learnBtn = tb;
+                    }
+            const bool inside = panel && applyBtn && panel->getLocalBounds().contains (applyBtn->getBounds());
+            check (inside, "Aplicar fica dentro do painel no tamanho mínimo", applyBtn ? applyBtn->getBottom() : -1, panel ? panel->getHeight() : -1);
+            check (applyBtn && learnBtn && applyBtn->getY() > learnBtn->getBottom() + 40, "espaço de revisão entre Aprender e Aplicar", applyBtn ? applyBtn->getY() : -1, learnBtn ? learnBtn->getBottom() + 40 : -1);
+            const int before = p->state.activeBandCount();
+            check (applyBtn && applyBtn->isEnabled(), "Aplicar ativo com sugestão", 1, 1);
+            if (applyBtn) applyBtn->triggerClick();
+            pump (200);
+            check (p->state.activeBandCount() > before, "clicar em Aplicar no painel cria as bandas", p->state.activeBandCount(), before + 1);
+            auto img = ed->createComponentSnapshot (ed->getLocalBounds(), true, 1.0f);
+            juce::File f (juce::File::getCurrentWorkingDirectory().getChildFile ("docs/ui_smart_ops_minimo.png"));
+            f.deleteFile(); { juce::FileOutputStream os (f); juce::PNGImageFormat().writeImageToStream (img, os); }
+        }
         InstanceRegistry::get().editorClosed();
     }
 
@@ -708,7 +766,7 @@ int main()
         // tamanho mínimo e janelas flutuantes
         {
             auto sm = make();
-            sm->state.loadFactory (presets::factory()[17]);
+            for (auto& pr : presets::factory()) if (pr.name == "Mid/Side largo") sm->state.loadFactory (pr);
             std::unique_ptr<juce::AudioProcessorEditor> ed (sm->createEditor());
             ed->setSize (1100, 680);
             ed->getChildComponent (0);

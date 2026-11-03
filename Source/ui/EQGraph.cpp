@@ -821,8 +821,7 @@ void EQGraph::mouseDrag (const juce::MouseEvent& e)
         const double f = clampv (freqForX (e.position.x), 20.0, 20000.0);
         if (drag == Drag::RangeFrom) proc.smart.fromHz = std::min (f, proc.smart.toHz / 1.2);
         else                         proc.smart.toHz = std::max (f, proc.smart.fromHz * 1.2);
-        proc.smart.rangeTouched = true;
-        proc.smartRecompute();
+        proc.smartRangeChanged();
         repaint();
         return;
     }

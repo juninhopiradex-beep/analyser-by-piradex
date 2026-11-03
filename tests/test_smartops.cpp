@@ -251,6 +251,136 @@ int main()
         for (auto& b : sug.bands) CHECK (std::abs (b.gainDb) <= 4.0 + 1e-9, "tonal fora de ±4 dB");
     }
 
+    // ------------------------------------------------------------------ operações novas (2.1)
+    auto pinkWith = [&] (std::initializer_list<BandParams> eq) -> std::vector<float>
+    {
+        std::vector<double> x ((size_t) n);
+        for (auto& v : x) v = g.pinkish();
+        BandArray bands {}; size_t k = 0;
+        for (auto& b : eq) bands[k++] = b;
+        return filtered (x, bands);
+    };
+    auto run = [&] (SmartOp op, const LearnResult& r, double amount = 1.0)
+    {
+        SmartSettings s; s.op = op; s.amount = amount; smartOpDefaultRange (op, s.fromHz, s.toHz);
+        return suggest (r, s);
+    };
+    auto near = [] (const SmartSuggestion& s, double f, double oct) { for (auto& b : s.bands) if (std::abs (std::log2 (b.freq / f)) < oct) return true; return false; };
+    // atenuação dinâmica máxima obtida pelas bandas sugeridas sobre o próprio sinal
+    auto dynReduction = [&] (const std::vector<float>& sig, const SmartSuggestion& sug)
+    {
+        IIREngine e; e.prepare (fs, 16, 0);
+        BandArray bb {}; for (size_t i = 0; i < sug.bands.size(); ++i) bb[i] = sug.bands[i];
+        std::vector<double> L (sig.begin(), sig.end()), R = L;
+        GlobalDynSettings gg; double worst = 0;
+        for (int s0 = 0; s0 < n; s0 += 512)
+        {
+            e.process (L.data() + s0, R.data() + s0, nullptr, nullptr, std::min (512, n - s0), bb, gg);
+            for (size_t i = 0; i < sug.bands.size(); ++i) worst = std::min (worst, e.bandDeltaDb ((int) i));
+        }
+        return worst;
+    };
+    const auto rPink = [&] { auto y = pinkWith ({}); return learn (y, nullptr); }();
+
+    std::printf ("Limpar lama / caixa / dureza\n");
+    {
+        auto y = pinkWith ({ mk (FilterType::Bell, 280, 6, 1.4), mk (FilterType::Bell, 900, 6, 2.5), mk (FilterType::Bell, 3600, 6, 2.0) });
+        auto r = learn (y, nullptr);
+        auto mud = run (SmartOp::Mud, r), box = run (SmartOp::Boxy, r), harsh = run (SmartOp::Harsh, r);
+        print ("lama +6 dB @ 280 Hz", mud); print ("caixa +6 dB @ 900 Hz", box); print ("dureza +6 dB @ 3,6 kHz", harsh);
+        CHECK (mud.ok && near (mud, 280, 0.3), "lama não encontrada a 280 Hz");
+        CHECK (box.ok && near (box, 900, 0.3), "caixa não encontrada a 900 Hz");
+        CHECK (harsh.ok && near (harsh, 3600, 0.3), "dureza não encontrada a 3,6 kHz");
+        for (auto* sg : { &mud, &box, &harsh })
+            for (auto& b : sg->bands) CHECK (b.dynamic && b.rangeDb < 0 && b.rangeDb >= -6.0 - 1e-9, "zona: banda fora dos limites");
+        CHECK (dynReduction (y, harsh) < -1.0, "dureza: o limiar aprendido não atua");
+        auto half = run (SmartOp::Harsh, r, 0.5);
+        CHECK (half.ok && half.bands[0].rangeDb > harsh.bands[0].rangeDb, "dureza: a intensidade não escala");
+        // ruído rosa liso: nada de fantasmas
+        CHECK (! run (SmartOp::Mud, rPink).ok && ! run (SmartOp::Boxy, rPink).ok && ! run (SmartOp::Harsh, rPink).ok, "zonas inventaram problemas em ruído rosa");
+    }
+
+    std::printf ("Presença / ar / calor\n");
+    {
+        auto dull = pinkWith ({ mk (FilterType::HighShelf, 5000, -9, 0.7) });
+        auto r = learn (dull, nullptr);
+        auto pr = run (SmartOp::Presence, r), air = run (SmartOp::Air, r);
+        print ("sinal abafado (presença)", pr); print ("sinal abafado (ar)", air);
+        CHECK (air.ok && air.bands[0].type == FilterType::HighShelf && air.bands[0].gainDb > 1.5 && air.bands[0].gainDb <= 5.0 + 1e-9, "ar devia realçar os agudos");
+        std::vector<float> w ((size_t) n); for (auto& v : w) v = (float) g.white();
+        auto rw = learn (w, nullptr);
+        auto warm = run (SmartOp::Warmth, rw), airW = run (SmartOp::Air, rw), prW = run (SmartOp::Presence, rw);
+        print ("ruído branco (calor)", warm);
+        CHECK (warm.ok && warm.bands[0].gainDb > 0.5 && warm.bands[0].gainDb <= 3.0 + 1e-9, "calor devia realçar um sinal fino");
+        CHECK (! airW.ok && ! prW.ok, "não devia realçar agudos num sinal já brilhante");
+        for (auto* sg : { &pr, &air, &warm }) for (auto& b : sg->bands) CHECK (! b.dynamic && b.gainDb > 0, "realce deve ser estático e positivo");
+    }
+
+    std::printf ("Controlar graves\n");
+    {
+        std::vector<float> y ((size_t) n);
+        for (int i = 0; i < n; ++i)
+        {
+            const bool boom = (i / (int) (fs * 0.25)) % 4 == 0;
+            y[(size_t) i] = (float) (g.pinkish() + (boom ? 0.35 : 0.0) * std::sin (kTwoPi * 65 * i / fs));
+        }
+        auto r = learn (y, nullptr);
+        auto sug = run (SmartOp::LowEnd, r);
+        print ("boom intermitente a 65 Hz", sug);
+        CHECK (sug.ok && near (sug, 65, 0.3), "boom não encontrado a 65 Hz");
+        if (sug.ok) CHECK (dynReduction (y, sug) < -2.0, "graves: não atua nos booms");
+        std::vector<float> st ((size_t) n);
+        for (int i = 0; i < n; ++i) st[(size_t) i] = (float) (g.pinkish() * 0.3);
+        auto rs = learn (st, nullptr);
+        CHECK (! run (SmartOp::LowEnd, rs).ok, "graves estáveis não deviam ter sugestão");
+    }
+
+    std::printf ("Remover zumbido\n");
+    {
+        std::vector<float> y ((size_t) n);
+        for (int i = 0; i < n; ++i)
+            y[(size_t) i] = (float) (0.3 * g.pinkish() + 0.02 * std::sin (kTwoPi * 50 * i / fs) + 0.012 * std::sin (kTwoPi * 100 * i / fs)
+                                     + 0.008 * std::sin (kTwoPi * 150 * i / fs));
+        auto r = learn (y, nullptr);
+        auto sug = run (SmartOp::Hum, r);
+        print ("zumbido 50 Hz + 100 + 150", sug);
+        CHECK (sug.ok && near (sug, 50, 0.03) && near (sug, 100, 0.03), "zumbido de 50 Hz não removido");
+        for (auto& b : sug.bands) CHECK (b.gainDb < 0 && b.q >= 12 && std::fmod (b.freq + 1e-6, 50.0) < 0.01, "notch de zumbido fora da série de 50 Hz (%.1f)", b.freq);
+        CHECK (! run (SmartOp::Hum, rPink).ok, "zumbido inventado em ruído rosa");
+    }
+
+    std::printf ("Auto dinâmico\n");
+    {
+        std::vector<double> x ((size_t) n), bursts ((size_t) n);
+        for (int i = 0; i < n; ++i) { x[(size_t) i] = g.pinkish(); bursts[(size_t) i] = ((i / (int) (fs * 0.2)) % 5 == 0) ? g.white() * 5 : 0.0; }
+        BandArray bp {}; bp[0] = mk (FilterType::BandPass, 1000, 0, 2.0);
+        auto b1 = filtered (bursts, bp);
+        std::vector<float> y ((size_t) n);
+        for (int i = 0; i < n; ++i) y[(size_t) i] = (float) x[(size_t) i] + b1[(size_t) i];
+        auto r = learn (y, nullptr);
+        auto sug = run (SmartOp::AutoDynamic, r);
+        print ("picos intermitentes a 1 kHz", sug);
+        CHECK (sug.ok && near (sug, 1000, 0.4), "auto dinâmico não encontrou os picos a 1 kHz");
+        if (sug.ok) { const double red = dynReduction (y, sug); std::printf ("  redução nos picos: %.1f dB\n", red); CHECK (red < -2.0, "auto dinâmico não atua nos picos"); }
+        print ("ruído rosa (auto dinâmico)", run (SmartOp::AutoDynamic, rPink));
+        CHECK (! run (SmartOp::AutoDynamic, rPink).ok, "auto dinâmico inventou picos em ruído rosa");
+    }
+
+    std::printf ("Todas as operações: nomes, grupos e resultados finitos\n");
+    {
+        int inGroups = 0;
+        for (auto& gr : smartOpGroups()) inGroups += (int) gr.ops.size();
+        CHECK (inGroups == (int) SmartOp::NumOps, "menu tem %d de %d operações", inGroups, (int) SmartOp::NumOps);
+        for (int o = 0; o < (int) SmartOp::NumOps; ++o)
+        {
+            CHECK (std::string (smartOpName ((SmartOp) o)).size() > 2, "operação %d sem nome", o);
+            auto sg = run ((SmartOp) o, rPink);
+            CHECK (! sg.summary.empty(), "operação %d sem explicação", o);
+            for (auto& b : sg.bands)
+                CHECK (std::isfinite (b.freq) && std::isfinite (b.gainDb) && std::isfinite (b.thresholdDb) && b.q >= kMinQ && b.q <= kMaxQ, "operação %d com valores inválidos", o);
+        }
+    }
+
     std::printf ("\n%d verificações, %d falhas\n", checks, failures);
     return failures == 0 ? 0 : 1;
 }

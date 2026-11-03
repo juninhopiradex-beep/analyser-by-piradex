@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.22)
-project(EQMotionByPiradex VERSION 2.0.1)
+project(EQMotionByPiradex VERSION 2.1.0)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -61,6 +61,7 @@ target_sources(EQMotion PRIVATE
     Source/PluginEditor.cpp
     Source/StateManager.cpp
     Source/Presets.cpp
+    Source/PresetsLibrary.cpp
     Source/License.cpp
     Source/ui/EQGraph.cpp
     Source/ui/BandPanel.cpp

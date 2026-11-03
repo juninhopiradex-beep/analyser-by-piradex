@@ -106,6 +106,7 @@ public:
         bool hasResult = false;
         eqm::SmartSuggestion suggestion;
         int lastAppliedOp = 0;
+        bool appliedLock = false;           // sugestão já aplicada: espera por outra operação/zona (a aprendizagem fica)
         juce::String message;
         eqm::LearnResult result;
     } smart;
@@ -115,6 +116,7 @@ public:
     void smartRecompute();
     void smartApply();
     void smartRevert();
+    void smartRangeChanged();           // De/Até mudaram (painel ou gráfico)
     double smartLearnSeconds() const;
     std::function<void()> onSmartChanged;
 

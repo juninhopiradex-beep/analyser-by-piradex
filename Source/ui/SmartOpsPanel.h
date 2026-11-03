@@ -8,10 +8,10 @@ class SmartOpsPanel : public juce::Component, private juce::Timer
 public:
     explicit SmartOpsPanel (EQMotionProcessor& p) : proc (p)
     {
-        for (int i = 0; i < (int) eqm::SmartOp::NumOps; ++i) op.addItem (juce::String::fromUTF8 (eqm::smartOpName ((eqm::SmartOp) i)), i + 1);
         lang.bind ([this]
         {
-            for (int i = 0; i < (int) eqm::SmartOp::NumOps; ++i) op.changeItemText (i + 1, juce::String::fromUTF8 (eqm::smartOpName ((eqm::SmartOp) i)));
+            eqm::smartEnglish().store (! piradex::i18n::isPortuguese());
+            rebuildOps();
             reference.setTooltip (tr ("De onde vem a referência: entrada sidechain ou o espetro médio de outra instância do EQMotion",
                                       "Where the reference comes from: the sidechain input or the average spectrum of another EQMotion instance"));
             revert.setTooltip (tr ("Remove só as bandas criadas pela última operação — as suas outras edições ficam",
@@ -37,8 +37,8 @@ public:
         setupBar (from, 20, 20000, true);
         setupBar (to, 20, 20000, true);
         setupBar (amount, 0, 100, false);
-        from.onValueChange = [this] { proc.smart.fromHz = juce::jmin (from.getValue(), proc.smart.toHz / 1.2); proc.smart.rangeTouched = true; proc.smartRecompute(); };
-        to.onValueChange = [this] { proc.smart.toHz = juce::jmax (to.getValue(), proc.smart.fromHz * 1.2); proc.smart.rangeTouched = true; proc.smartRecompute(); };
+        from.onValueChange = [this] { proc.smart.fromHz = juce::jmin (from.getValue(), proc.smart.toHz / 1.2); proc.smartRangeChanged(); };
+        to.onValueChange = [this] { proc.smart.toHz = juce::jmax (to.getValue(), proc.smart.fromHz * 1.2); proc.smartRangeChanged(); };
         amount.onValueChange = [this] { proc.smart.amount = amount.getValue() * 0.01; proc.smartRecompute(); };
         from.setDoubleClickReturnValue (true, 20); to.setDoubleClickReturnValue (true, 20000); amount.setDoubleClickReturnValue (true, 100);
 
@@ -90,33 +90,42 @@ public:
         repaint();
     }
 
+    // altura mínima confortável (o editor garante pelo menos isto na altura mínima da janela)
+    static constexpr int kComfortH = 470;
+
     void resized() override
     {
-        auto r = getLocalBounds().reduced (16, 12);
-        auto head = r.removeFromTop (28);
+        const bool compact = getHeight() < kComfortH;
+        const int gap = compact ? 6 : 12, sub = compact ? 4 : 6, stepH = compact ? 18 : 20, ctl = compact ? 24 : 26;
+        auto r = getLocalBounds().reduced (16, compact ? 8 : 12);
+        auto head = r.removeFromTop (compact ? 24 : 28);
         close.setBounds (head.removeFromRight (24).withSizeKeepingCentre (24, 24));
         titleArea = head;
-        r.removeFromTop (8);
-        step1 = r.removeFromTop (20); r.removeFromTop (6);
-        op.setBounds (r.removeFromTop (28));
-        if (reference.isVisible()) { r.removeFromTop (6); reference.setBounds (r.removeFromTop (26)); }
-        r.removeFromTop (12);
-        step2 = r.removeFromTop (20); r.removeFromTop (6);
-        auto row = r.removeFromTop (26);
-        from.setBounds (row.removeFromLeft (row.getWidth() / 2 - 3)); row.removeFromLeft (6); to.setBounds (row);
-        r.removeFromTop (6);
-        amount.setBounds (r.removeFromTop (26));
-        r.removeFromTop (12);
-        step3 = r.removeFromTop (20); r.removeFromTop (6);
-        learn.setBounds (r.removeFromTop (32));
-        progress = r.removeFromTop (6).reduced (0, 1);
-        r.removeFromTop (8);
-        step4 = r.removeFromTop (20); r.removeFromTop (4);
-        review = r.removeFromTop (juce::jmax (40, r.getHeight() - 70));
-        r.removeFromTop (6);
-        step5 = r.removeFromTop (20); r.removeFromTop (6);
-        row = r.removeFromTop (30);
+        r.removeFromTop (compact ? 4 : 8);
+
+        // 5 · Aplicar — fixo no fundo, nunca é empurrado para fora do painel
+        auto row = r.removeFromBottom (compact ? 28 : 30);
         apply.setBounds (row.removeFromLeft (row.getWidth() / 2 - 3)); row.removeFromLeft (6); revert.setBounds (row);
+        r.removeFromBottom (sub);
+        step5 = r.removeFromBottom (stepH);
+        r.removeFromBottom (gap);
+
+        step1 = r.removeFromTop (stepH); r.removeFromTop (sub);
+        op.setBounds (r.removeFromTop (ctl + 2));
+        if (reference.isVisible()) { r.removeFromTop (sub); reference.setBounds (r.removeFromTop (ctl)); }
+        r.removeFromTop (gap);
+        step2 = r.removeFromTop (stepH); r.removeFromTop (sub);
+        row = r.removeFromTop (ctl);
+        from.setBounds (row.removeFromLeft (row.getWidth() / 2 - 3)); row.removeFromLeft (6); to.setBounds (row);
+        r.removeFromTop (sub);
+        amount.setBounds (r.removeFromTop (ctl));
+        r.removeFromTop (gap);
+        step3 = r.removeFromTop (stepH); r.removeFromTop (sub);
+        learn.setBounds (r.removeFromTop (compact ? 28 : 32));
+        progress = r.removeFromTop (6).reduced (0, 1);
+        r.removeFromTop (compact ? 2 : 6);
+        step4 = r.removeFromTop (stepH); r.removeFromTop (4);
+        review = r;                         // o que sobra (o texto é cortado à altura disponível)
     }
 
     void paint (juce::Graphics& g) override
@@ -149,19 +158,52 @@ public:
             g.fillRoundedRectangle (progress.toFloat().withWidth (progress.getWidth() * frac), 2);
         }
 
-        // rever
-        auto rv = review;
-        juce::String status, detail;
-        juce::Colour dot = pal::textFaint;
-        if (s.learning) { status = tr ("A aprender", "Learning"); detail = tr ("Ainda a mudar. Pare quando a passagem acabar (mínimo 2 s).", "Still changing. Stop when the passage ends (minimum 2 s)."); dot = pal::accent; }
-        else if (s.suggestion.ok) { const int nb = (int) s.suggestion.bands.size(); status = tr ("Sugestão: ", "Suggestion: ") + juce::String (nb) + (nb == 1 ? tr (" banda", " band") : tr (" bandas", " bands")); detail = s.message + tr ("\nTracejado no gráfico. A Intensidade ajusta a força em tempo real.", "\nDashed on the graph. Amount adjusts the strength in real time."); dot = pal::accent; }
-        else if (s.message.isNotEmpty()) { status = s.hasResult ? tr ("Sem alterações propostas", "No changes proposed") : tr ("Pronto", "Ready"); detail = s.message; dot = s.hasResult ? pal::textDim : pal::ok; }
-        else { status = tr ("À espera", "Waiting"); detail = hint (s.op); }
-        g.setColour (dot); g.fillEllipse ((float) rv.getX(), (float) rv.getY() + 5, 8, 8);
-        g.setColour (pal::text); g.setFont (fonts::ui (13.5f, 2));
-        g.drawText (status, rv.removeFromTop (18).withTrimmedLeft (16), juce::Justification::centredLeft);
-        g.setColour (pal::textDim); g.setFont (fonts::ui (12.0f));
-        g.drawFittedText (detail, rv.withTrimmedLeft (16).withTrimmedTop (2), juce::Justification::topLeft, 6, 1.0f);
+        // rever — tudo dentro da área disponível, nunca por cima do passo 5
+        {
+            juce::Graphics::ScopedSaveState ss (g);
+            g.reduceClipRegion (review);
+            auto rv = review;
+            juce::String status, detail;
+            juce::Colour dot = pal::textFaint;
+            if (s.learning) { status = tr ("A aprender", "Learning"); detail = tr ("Ainda a mudar. Pare quando a passagem acabar (mínimo 2 s).", "Still changing. Stop when the passage ends (minimum 2 s)."); dot = pal::accent; }
+            else if (s.suggestion.ok) { const int nb = (int) s.suggestion.bands.size(); status = tr ("Sugestão: ", "Suggestion: ") + juce::String (nb) + (nb == 1 ? tr (" banda", " band") : tr (" bandas", " bands")); detail = s.message; dot = pal::accent; }
+            else if (s.appliedLock) { status = tr ("Aplicado", "Applied"); detail = s.message; dot = pal::ok; }
+            else if (s.message.isNotEmpty()) { status = s.hasResult ? tr ("Sem alterações propostas", "No changes proposed") : tr ("Pronto", "Ready"); detail = s.message; dot = s.hasResult ? pal::textDim : pal::ok; }
+            else { status = tr ("À espera", "Waiting"); detail = hint (s.op); }
+            g.setColour (dot); g.fillEllipse ((float) rv.getX(), (float) rv.getY() + 5, 8, 8);
+            g.setColour (pal::text); g.setFont (fonts::ui (13.5f, 2));
+            g.drawText (status, rv.removeFromTop (18).withTrimmedLeft (16), juce::Justification::centredLeft);
+            rv = rv.withTrimmedLeft (16).withTrimmedTop (2);
+
+            const float lineH = 15.0f;
+            auto paragraph = [&] (const juce::String& text, juce::Colour c, float size)
+            {
+                if (text.isEmpty() || rv.getHeight() < (int) lineH) return;
+                juce::AttributedString as; as.setJustification (juce::Justification::topLeft); as.setWordWrap (juce::AttributedString::byWord);
+                as.append (text, fonts::ui (size), c); as.setLineSpacing (1.0f);
+                juce::TextLayout tl; tl.createLayout (as, (float) rv.getWidth());
+                // só linhas inteiras: o que não couber fica de fora em vez de se sobrepor
+                float used = 0; int lines = 0;
+                for (int i = 0; i < tl.getNumLines(); ++i) { const float h = tl.getLine (i).ascent + tl.getLine (i).descent + 1.0f; if (used + h > (float) rv.getHeight()) break; used += h; ++lines; }
+                if (lines == 0) return;
+                juce::Graphics::ScopedSaveState s2 (g);
+                g.reduceClipRegion (rv.withHeight ((int) std::ceil (used)));
+                tl.draw (g, rv.toFloat());
+                rv.removeFromTop ((int) std::ceil (used) + 4);
+            };
+            paragraph (detail, pal::textDim, 12.0f);
+            if (s.suggestion.ok)
+            {
+                for (auto& b : s.suggestion.bands)
+                {
+                    if (rv.getHeight() < (int) lineH) break;
+                    auto line = rv.removeFromTop ((int) lineH);
+                    g.setColour (pal::textDim); g.setFont (fonts::mono (11.0f));
+                    g.drawText (bandLine (b), line, juce::Justification::centredLeft);
+                }
+                paragraph (tr ("Tracejado no gráfico. A Intensidade ajusta a força em tempo real.", "Dashed on the graph. Amount adjusts the strength in real time."), pal::textFaint, 11.5f);
+            }
+        }
     }
 
 private:
@@ -175,8 +217,49 @@ private:
             case eqm::SmartOp::MatchReference: return tr ("Toque este sinal e a referência (no sidechain, ou outra instância) e aprenda.", "Play this signal and the reference (on the sidechain, or another instance) and learn.");
             case eqm::SmartOp::Unmask:         return tr ("Com a voz (ou outro sinal) no sidechain, abre espaço só quando ele toca.", "With the vocal (or another signal) on the sidechain, makes room only while it plays.");
             case eqm::SmartOp::TonalBalance:   return tr ("Compara com o equilíbrio médio de misturas e propõe correções largas e suaves (±4 dB).", "Compares with the average balance of mixes and proposes broad, gentle corrections (±4 dB).");
+            case eqm::SmartOp::Mud:            return tr ("Procura acumulação nos graves-médios e corta-a só quando aparece.", "Looks for low-mid build-up and cuts it only when it shows up.");
+            case eqm::SmartOp::Boxy:           return tr ("Procura o som de caixa ou nasal nos médios e propõe cortes dinâmicos.", "Looks for boxy or nasal tone in the mids and proposes dynamic cuts.");
+            case eqm::SmartOp::Harsh:          return tr ("Procura dureza nos médios-agudos (2–8 kHz) e doma-a nos momentos fortes.", "Looks for harshness in the upper mids (2–8 kHz) and tames it on the loud moments.");
+            case eqm::SmartOp::LowEnd:         return tr ("Encontra o 'boom' dos graves e segura-o quando sobe, sem tirar o sub.", "Finds the low-end boom and holds it when it rises, without removing the sub.");
+            case eqm::SmartOp::Presence:       return tr ("Compara com o equilíbrio médio e realça a presença (2–5 kHz) se faltar. Máx. +4 dB.", "Compares with the average balance and lifts presence (2–5 kHz) if it is lacking. Max +4 dB.");
+            case eqm::SmartOp::Air:            return tr ("Realça o ar acima de 8 kHz se faltar e houver conteúdo. Máx. +5 dB.", "Lifts the air above 8 kHz if it is lacking and there is content. Max +5 dB.");
+            case eqm::SmartOp::Warmth:         return tr ("Realça o corpo à volta de 150–300 Hz se o som estiver fino. Máx. +3 dB.", "Lifts the body around 150–300 Hz if the sound is thin. Max +3 dB.");
+            case eqm::SmartOp::Hum:            return tr ("Deteta zumbido elétrico de 50 ou 60 Hz e os harmónicos e propõe notches estreitos.", "Detects 50 or 60 Hz electrical hum and its harmonics and proposes narrow notches.");
+            case eqm::SmartOp::AutoDynamic:    return tr ("Encontra as zonas que saltam mais do que o resto do sinal e controla-as dinamicamente.", "Finds the ranges that jump more than the rest of the signal and controls them dynamically.");
             default: return {};
         }
+    }
+
+    void rebuildOps()
+    {
+        op.clear (juce::dontSendNotification);
+        for (auto& gr : eqm::smartOpGroups())
+        {
+            op.addSectionHeading (tr (gr.pt, gr.en));
+            for (auto o : gr.ops) op.addItem (juce::String::fromUTF8 (eqm::smartOpName (o)), (int) o + 1);
+        }
+        op.setSelectedId ((int) proc.smart.op + 1, juce::dontSendNotification);
+    }
+
+    static juce::String bandLine (const eqm::BandParams& b)
+    {
+        using eqm::FilterType;
+        juce::String type;
+        switch (b.type)
+        {
+            case FilterType::LowShelf:  type = tr ("Shelf grave", "Low shelf"); break;
+            case FilterType::HighShelf: type = tr ("Shelf agudo", "High shelf"); break;
+            case FilterType::LowCut:    type = tr ("Corte grave", "Low cut"); break;
+            case FilterType::HighCut:   type = tr ("Corte agudo", "High cut"); break;
+            case FilterType::Notch:     type = "Notch"; break;
+            default:                    type = tr ("Sino", "Bell"); break;
+        }
+        juce::String s = juce::String::formatted ("%-9s ", hzText (b.freq).toRawUTF8()) + type;
+        const bool cut = b.type == FilterType::LowCut || b.type == FilterType::HighCut;
+        if (b.isDynamic()) s << "  " << decimal (b.rangeDb, 1) << tr (" dB din.", " dB dyn.");
+        else if (! cut)    s << "  " << (b.gainDb > 0 ? "+" : "") << decimal (b.gainDb, 1) << " dB";
+        if (! cut && b.type != FilterType::LowShelf && b.type != FilterType::HighShelf) s << "  Q " << decimal (b.q, 1);
+        return s;
     }
 
     void rebuildReferences()

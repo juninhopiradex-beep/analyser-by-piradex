@@ -1,7 +1,7 @@
 # EQMotion by Piradex
 
 **Um equalizador dinâmico que mostra o que está a fazer.**
-Versão **2.0.1** · VST3, Audio Unit e AAX para macOS (10.13+, Intel e Apple Silicon — corre num MacBook Pro 2013 com Catalina) e VST3 + AAX para Windows 10/11 64 bits · interface em **Português e Inglês**.
+Versão **2.1.0** · VST3, Audio Unit e AAX para macOS (10.13+, Intel e Apple Silicon — corre num MacBook Pro 2013 com Catalina) e VST3 + AAX para Windows 10/11 64 bits · interface em **Português e Inglês**.
 
 ![EQMotion](docs/ui_principal.png)
 
@@ -11,17 +11,24 @@ Versão **2.0.1** · VST3, Audio Unit e AAX para macOS (10.13+, Intel e Apple Si
 |---|---|
 | **Curva** | Até 24 bandas · 9 formas: sino, low/high shelf, low/high cut, notch, passa-banda, all-pass, tilt · cortes de 6 a 96 dB/oct + Brickwall · duplo clique para criar, arrastar, roda para o Q, duplo clique no nó para apagar · analisador ao vivo por baixo |
 | **Dinâmica** | Qualquer sino/shelf/tilt passa a dinâmico · limiar, range (com sinal), ratio, ataque, hold, release, joelho · acima/abaixo (comprimir/expandir) · detetor da pista ou sidechain · Peak/RMS · lookahead global · halo e ponto "ao vivo" no gráfico + medidor no painel |
-| **Smart Ops** | Deresonate, De-ess, Auto cortes, Igualar referência (sidechain ou outra instância), Unmask, Equilíbrio tonal · Aprender (≥ 2 s) → Rever (tracejado no gráfico) → Aplicar · Amount em tempo real · Aplicar e Reverter são um passo de desfazer cada; Reverter só remove as bandas da operação |
+| **Smart Ops** | 15 operações: Deresonate, De-ess, Limpar lama, Caixa e nasal, Domar dureza, Remover zumbido (50/60 Hz), Auto cortes, Controlar graves, Auto dinâmico, Unmask, Realçar presença/ar/calor, Equilíbrio tonal, Igualar referência (sidechain ou outra instância) · Aprender (≥ 2 s) → Rever (tracejado no gráfico + lista das bandas) → Aplicar · Intensidade em tempo real · uma aprendizagem serve várias operações · Aplicar e Reverter são um passo de desfazer cada; Reverter só remove as bandas da operação |
 | **Comparar** | A/B com cópia · desfazer/refazer · Auto gain (comparações à mesma loudness) · Delta (só o que o EQ muda, alinhado em latência) · Listen e Bypass por banda |
 | **Fase e estéreo** | Zero Latency · Natural Phase (igual ao analógico até 20 kHz) · Linear Phase (3 qualidades) · Estéreo, Esq./Dir., Mid/Side · colocação por banda: estéreo, L, R, M ou S |
 | **Character** | Clean (sem harmónicos, nulo exato) · Subtle · Warm · De-harsh dinâmico |
-| **Instâncias e presets** | Todas as instâncias do projeto num painel, com curvas e espetros sobrepostos · 46 presets de fábrica em 10 pastas · presets do utilizador com pesquisa e favoritos |
+| **Instâncias e presets** | Todas as instâncias do projeto num painel, com curvas e espetros sobrepostos · 246 presets de fábrica em 15 pastas (200 novos na 2.1) · presets do utilizador com pesquisa e favoritos |
 | **Idioma** | Seletor **PT \| EN** em *Definições › Idioma* e no ecrã de senha · troca imediata · primeira abertura segue o idioma do sistema · escolha comum a todos os plugins Piradex · nomes dos presets de fábrica traduzidos (o nome guardado na sessão não muda) · nomes de automação no DAW fixos |
 | **Acesso** | Ecrã de senha igual aos outros plugins Piradex (senha master + senhas beta com validade, "lembrar neste computador"). Sem sessão o plugin deixa passar o áudio sem processar. |
 
+## Novo na 2.1.0
+
+* **Smart Ops: passo 5 "Aplicar" corrigido** — os botões Aplicar/Reverter ficam sempre visíveis no fundo do painel (também na janela mínima) e o texto da revisão já não se sobrepõe.
+* **9 operações novas**: Limpar lama, Caixa e nasal, Domar dureza, Remover zumbido 50/60 Hz, Controlar graves (boom), Auto dinâmico, Realçar presença, Realçar ar, Realçar calor — menu agrupado em *Corrigir*, *Dinâmica* e *Realçar e equilibrar*.
+* A revisão mostra a lista das bandas propostas; depois de aplicar, a aprendizagem fica para a próxima operação.
+* **200 presets novos** em 10 categorias (Voz, Bateria, Baixo, Guitarras, Teclas e Synths, Dinâmica e Ressonâncias, Estéreo e M/S, Mistura e Masking, Mastering, Criativo) — 246 no total, com nomes e descrições PT/EN.
+
 ## Downloads
 
-Cada push compila e valida no GitHub Actions (auval Intel + Apple Silicon, pluginval, testes de áudio) e publica a versão **EQMotion by Piradex 2.0.1** na página *Releases* (no repositório do ANALYSER: `eqmotion-v2.0.1`):
+Cada push compila e valida no GitHub Actions (auval Intel + Apple Silicon, pluginval, testes de áudio) e publica a versão **EQMotion by Piradex 2.1.0** na página *Releases* (no repositório do ANALYSER: `eqmotion-v2.1.0`):
 
 * `EQMotion-by-Piradex-<versão>-macOS.dmg` — instalador `.pkg` + plugins para instalação manual
 * `EQMotion-by-Piradex-<versão>-Windows-Setup.exe` — instalador (ou o `.zip` para copiar à mão)

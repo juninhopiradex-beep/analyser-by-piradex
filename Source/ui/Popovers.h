@@ -31,7 +31,7 @@ public:
         openFolder.getProperties().set ("flat", true);
         openFolder.onClick = [this] { proc.presetManager.userFolder().startAsProcess(); };
         addAndMakeVisible (save); addAndMakeVisible (openFolder);
-        setSize (440, 480);
+        setSize (480, 560);
         rebuild();
     }
 
@@ -41,7 +41,7 @@ public:
     {
         auto r = getLocalBounds().reduced (12);
         auto top = r.removeFromTop (28);
-        folder.setBounds (top.removeFromRight (150)); top.removeFromRight (8);
+        folder.setBounds (top.removeFromRight (190)); top.removeFromRight (8);
         search.setBounds (top);
         r.removeFromTop (8);
         auto bottom = r.removeFromBottom (30);

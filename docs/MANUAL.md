@@ -10,7 +10,7 @@ Ao abrir o plugin aparece o ecrã de senha (igual aos outros plugins Piradex). E
 
 | Controlo | O que faz |
 |---|---|
-| ‹ **Preset** › | Abre o navegador (pesquisa, pastas, ★ favoritos, **Guardar como…**). As setas passam ao preset anterior/seguinte. Um `*` indica alterações. |
+| ‹ **Preset** › | Abre o navegador com 246 presets de fábrica em 15 pastas (pesquisa, pastas, ★ favoritos, **Guardar como…**). As setas passam ao preset anterior/seguinte. Um `*` indica alterações. |
 | ↶ ↷ | Desfazer / refazer (também Cmd/Ctrl+Z e Cmd/Ctrl+Shift+Z). |
 | **A B** ⧉ | Duas definições completas; ⧉ copia a atual para a outra. Cada uma tem o seu histórico. |
 | **Estéreo / Esq./Dir. / Mid/Side** | O analisador divide-se para condizer; as bandas novas nascem em Esquerda (L/R) ou Mid (M/S). |
@@ -59,17 +59,25 @@ Medidores de entrada e saída (pico, RMS, retenção; clique para limpar o CLIP)
 
 ![Smart Ops](ui_smart_ops.png)
 
-1. **Operação**
-   * *Deresonate* — ressonâncias estreitas e persistentes → bandas dinâmicas limitadas (Q 3–18, até −12 dB).
-   * *De-ess* — sibilância na zona escolhida (por omissão 4–12 kHz) → 1 banda dinâmica.
-   * *Auto cortes* — graves/agudos onde só há ruído de fundo; sub e ar musicais são protegidos.
-   * *Igualar referência* — a referência entra pelo sidechain (ou escolha outra instância do EQMotion).
-   * *Unmask* — com a voz (ou outro sinal) no sidechain, cria bandas dinâmicas que só abrem espaço quando ela toca.
-   * *Equilíbrio tonal* — correções largas e suaves (±4 dB) para o equilíbrio médio de misturas.
-2. **Intervalo e intensidade** — De/Até (também se arrastam as pegas no gráfico) e Amount. Mudam a sugestão em tempo real, sem voltar a aprender.
+1. **Operação** — 15 operações em três grupos:
+   * **Corrigir**
+     * *Deresonate* — ressonâncias estreitas e persistentes → bandas dinâmicas limitadas (Q 3–18, até −12 dB).
+     * *De-ess* — sibilância na zona escolhida (por omissão 4–12 kHz) → 1 banda dinâmica.
+     * *Limpar lama* (120–600 Hz), *Caixa e nasal* (400 Hz–2 kHz) e *Domar dureza* (2–8 kHz) — procuram uma saliência face à vizinhança de ±1 oitava e propõem 1–2 cortes dinâmicos (até −6 dB) que só atuam nos momentos em que o problema aparece.
+     * *Remover zumbido (50/60 Hz)* — deteta a série de 50 ou 60 Hz e harmónicos e propõe notches estreitos. Se o pico varia como uma nota de baixo, recusa (não é zumbido).
+     * *Auto cortes* — graves/agudos onde só há ruído de fundo; sub e ar musicais são protegidos.
+   * **Dinâmica**
+     * *Controlar graves (boom)* — encontra o boom abaixo dos 250 Hz e segura-o quando sobe, sem tirar o sub.
+     * *Auto dinâmico* — encontra as zonas que variam muito mais do que o resto do sinal (picos tonais que vêm e vão) e controla até 4 delas.
+     * *Unmask* — com a voz (ou outro sinal) no sidechain, cria bandas dinâmicas que só abrem espaço quando ela toca.
+   * **Realçar e equilibrar**
+     * *Realçar presença* (2–5 kHz, máx. +4 dB), *Realçar ar* (shelf 8–12 kHz, máx. +5 dB) e *Realçar calor* (150–300 Hz, máx. +3 dB) — comparam com o equilíbrio médio de misturas e só realçam se faltar. O ar não realça zonas sem conteúdo.
+     * *Equilíbrio tonal* — correções largas e suaves (±4 dB) para o equilíbrio médio de misturas.
+     * *Igualar referência* — a referência entra pelo sidechain (ou escolha outra instância do EQMotion).
+2. **Intervalo e intensidade** — De/Até (também se arrastam as pegas no gráfico) e Intensidade. Mudam a sugestão em tempo real, sem voltar a aprender. Cada operação traz o seu intervalo por omissão.
 3. **Aprender** enquanto a música toca; **Parar** fica disponível a partir dos 2 s.
-4. **Rever** — número de bandas, zonas problemáticas a sombreado e a curva proposta a **tracejado**. Nada mudou ainda no som.
-5. **Aplicar** cria as bandas (um passo de desfazer). **Reverter** remove só as bandas dessa operação; as suas edições manuais ficam.
+4. **Rever** — o resumo, a lista das bandas propostas (frequência, tipo, ganho ou alcance dinâmico, Q) e a curva proposta a **tracejado** no gráfico. Nada mudou ainda no som.
+5. **Aplicar** (sempre visível no fundo do painel, mesmo na janela mínima) cria as bandas num só passo de desfazer. **Reverter** remove só as bandas dessa operação; as suas edições manuais ficam. A aprendizagem fica guardada: depois de aplicar pode escolher outra operação (por exemplo Deresonate → Domar dureza → Realçar ar) sem voltar a aprender.
 
 ## Instâncias
 
@@ -81,3 +89,12 @@ Em ◇ dê um nome a esta instância (por omissão é o nome da pista, se o DAW 
 * **Delta** + uma banda dinâmica é a forma mais rápida de ouvir se está a cortar demais.
 * Para masterização: **LP** (qualidade Média/Alta) ou **NP**; para gravar ou tocar ao vivo: **ZL**.
 * O lookahead (⚙) só existe em Natural Phase.
+
+## Presets de fábrica (2.1)
+
+246 presets: os 46 originais e uma biblioteca de 200 em 10 categorias — **Voz**, **Bateria**, **Baixo**, **Guitarras**, **Teclas e Synths**, **Dinâmica e Ressonâncias**, **Estéreo e M/S**, **Mistura e Masking**, **Mastering** e **Criativo** (vintage e efeitos). Com a interface em inglês aparecem com os nomes ingleses (ex.: *Clareza vocal* → *Vocal Clarity*). A pesquisa procura nos dois idiomas.
+
+* Os presets de *Mistura e Masking* e os de ducking usam o **sidechain**: ponha no sidechain o instrumento que deve ter prioridade (a descrição diz qual).
+* Os de *Estéreo e M/S* ligam o modo Mid/Side ou Esq./Dir. sozinhos.
+* *Transição com varrimento* e *Filtro para automação* deixam um corte ressonante na banda 1 pronto para automatizar a frequência no DAW.
+* Os presets são pontos de partida: os limiares das bandas dinâmicas dependem do nível da sua pista — ajuste o **Limiar** até o medidor DET/GR mostrar a redução só nos momentos certos, ou use a operação Smart Ops correspondente para calibrar a partir do áudio.

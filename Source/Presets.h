@@ -1,5 +1,5 @@
 // =============================================================================
-//  EQMotion — presets de fábrica (10 pastas) e presets do utilizador
+//  EQMotion — presets de fábrica (246, em 15 pastas) e presets do utilizador
 // =============================================================================
 #pragma once
 #include <juce_core/juce_core.h>
@@ -15,9 +15,10 @@ struct PresetBand
 
 struct FactoryPreset
 {
-    juce::String folder, name, description;
+    juce::String folder, name, description;   // pasta e nome guardados em português (identificam o preset)
     std::vector<eqm::BandParams> bands;
     std::map<juce::String, float> globals;   // id → valor real (ex.: "character" → 1)
+    juce::String nameEn, descriptionEn;       // texto mostrado com a interface em inglês
 };
 
 namespace presets
@@ -40,6 +41,9 @@ inline BandParams below (BandParams b) { b.direction = DynDirection::Below; retu
 inline BandParams at (BandParams b, Placement p) { b.placement = p; return b; }
 
 const std::vector<FactoryPreset>& factory();
+
+// Biblioteca 2.1 (200 presets em 10 categorias) — PresetsLibrary.cpp
+void addLibrary (std::vector<FactoryPreset>& v);
 
 // Texto mostrado no idioma da interface (o nome guardado não muda)
 juce::String displayName (const juce::String& storedName);

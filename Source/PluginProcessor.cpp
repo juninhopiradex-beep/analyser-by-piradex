@@ -595,6 +595,7 @@ void EQMotionProcessor::updateTrackProperties (const TrackProperties& p)
 void EQMotionProcessor::smartSetOp (SmartOp op)
 {
     smart.op = op;
+    smart.appliedLock = false;
     if (! smart.rangeTouched) smartOpDefaultRange (op, smart.fromHz, smart.toHz);
     smartRecompute();
 }
@@ -606,6 +607,7 @@ void EQMotionProcessor::smartStartLearning()
         learner.start (sampleRateHz);
     }
     learning.store (true);
+    smart.appliedLock = false;
     smart.learning = true;
     smart.hasResult = false;
     smart.suggestion = {};
@@ -635,7 +637,7 @@ void EQMotionProcessor::smartStopLearning()
 void EQMotionProcessor::smartRecompute()
 {
     eqm::smartEnglish().store (! piradex::i18n::isPortuguese());   // textos das sugestões no idioma da interface
-    if (smart.hasResult)
+    if (smart.hasResult && ! smart.appliedLock)
     {
         SmartSettings s;
         s.op = smart.op; s.fromHz = smart.fromHz; s.toHz = smart.toHz; s.amount = smart.amount;
@@ -670,9 +672,17 @@ void EQMotionProcessor::smartApply()
     const int wanted = (int) smart.suggestion.bands.size();
     smart.message = applied == wanted ? piradex::i18n::tr ("Aplicado: ", "Applied: ") + juce::String (applied) + (applied == 1 ? piradex::i18n::tr (" banda.", " band.") : piradex::i18n::tr (" bandas.", " bands."))
                                       : piradex::i18n::tr ("Só havia espaço para ", "There was only room for ") + juce::String (juce::jmin (free, applied)) + piradex::i18n::tr (" de ", " of ") + juce::String (wanted) + piradex::i18n::tr (" bandas.", " bands.");
+    smart.message += piradex::i18n::tr (" Pode escolher outra operação: usa a mesma aprendizagem.", " You can pick another operation: it reuses the same learning.");
     smart.suggestion = {};
-    smart.hasResult = false;
+    smart.appliedLock = true;               // a aprendizagem fica para a próxima operação
     if (onSmartChanged) onSmartChanged();
+}
+
+void EQMotionProcessor::smartRangeChanged()
+{
+    smart.rangeTouched = true;
+    smart.appliedLock = false;
+    smartRecompute();
 }
 
 void EQMotionProcessor::smartRevert()
