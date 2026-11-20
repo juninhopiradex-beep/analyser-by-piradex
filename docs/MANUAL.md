@@ -4,6 +4,8 @@
 
 Ao abrir o plugin aparece o ecrã de senha (igual aos outros plugins Piradex). Escreva a senha e carregue em **Entrar**; com **Lembrar neste computador** ligado não volta a ser pedida. Sem sessão iniciada o EQMotion deixa passar o áudio sem processar, com a mesma latência — nunca altera uma mistura sem querer. Para terminar a sessão: ⚙ → **Terminar sessão**.
 
+Se comprou uma **chave de licença** (formato `EQM-XXXX-XXXX-XXXX`), escreva-a no mesmo campo: o plugin confirma-a pela internet no servidor de licenças da Piradex. Depois de ativada fica presa a este computador, funciona até 14 dias sem internet e é confirmada de novo, no máximo, uma vez por dia. Se aparecer "Esta licença está ativa noutro computador", peça a transferência ao suporte (juninhopiradex@hotmail.com).
+
 ![Interface](ui_principal.png)
 
 ## Barra de cima

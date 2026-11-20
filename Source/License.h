@@ -5,6 +5,7 @@
 //  PBKDF2-HMAC-SHA256 (60 000 iterações) de cada uma.
 //  Para criar novas senhas beta: tools/nova_senha_beta.py  (cola a linha
 //  gerada em kKeys, em License.cpp, e recompila).
+//  Chaves de licença (XXX-XXXX-XXXX-XXXX) são validadas online pelo PCC: ver pcc/PccSession.h.
 // =============================================================================
 #pragma once
 
@@ -12,6 +13,7 @@
 #include <juce_data_structures/juce_data_structures.h>
 #include <juce_cryptography/juce_cryptography.h>
 #include <atomic>
+#include "pcc/PccSession.h"
 
 namespace lic
 {
@@ -29,7 +31,7 @@ struct KeyEntry
 class License
 {
 public:
-    enum class Result { Ok, Wrong, Expired };
+    enum class Result { Ok, Wrong, Expired, Online };   // Online: o PCC recusou ou não respondeu (texto em onlineText())
 
     static License& get();
 
@@ -51,6 +53,12 @@ public:
     static int matchPassword (const juce::String& password, bool& expired);   // índice ou -1
     Result applyMatch (int index, bool expired, bool remember);
     Result tryPassword (const juce::String& password, bool remember);
+    // Chave de licença online (PCC): checkOnline numa thread de fundo, applyOnline na thread de mensagens.
+    static piradex::pcc::Check checkOnline (const juce::String& password) { return get().pcc.check (password); }
+    Result applyOnline (const piradex::pcc::Check& c, bool remember);
+    juce::String onlineText() const { return lastOnline; }
+    bool claimOnlineRecheck();              // barato (thread de mensagens): true = lançar revalidateOnline() agora
+    void revalidateOnline();                // fundo, no máximo 1x/dia; revogada no PCC => bloqueia
     void   lock();                         // terminar sessão neste computador
     void   checkExpiry();                  // bloqueia se a senha beta expirar durante o uso
 
@@ -69,10 +77,15 @@ private:
     License();
     void tryAutoUnlock();
     void setUnlocked (const KeyEntry& k);
+    void setUnlockedOnline();
     static juce::String tokenFor (const KeyEntry& k);
     std::unique_ptr<juce::PropertiesFile> props;
     std::atomic<bool> unlocked { false };
     Kind currentKind = Kind::None;
     const KeyEntry* currentKey = nullptr;
+    piradex::pcc::Session pcc { "EQMOTION", PIRADEX_PCC_VERSION };
+    std::atomic<bool> online { false };
+    std::atomic<juce::int64> lastRecheckTry { 0 };
+    juce::String lastOnline;
 };
 } // namespace lic

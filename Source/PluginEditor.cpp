@@ -146,6 +146,8 @@ void EQMotionEditor::showCallout (std::unique_ptr<juce::Component> c, juce::Comp
 void EQMotionEditor::timerCallback()
 {
     lic::License::get().checkExpiry();
+    if (lic::License::get().claimOnlineRecheck())                    // licença online: revalida no PCC 1x por dia
+        juce::Thread::launch ([] { lic::License::get().revalidateOnline(); });
     if (login.isVisible() == lic::License::get().isUnlocked()) updateLock();
     abar.setZoomed (graph.isZoomed());
 }

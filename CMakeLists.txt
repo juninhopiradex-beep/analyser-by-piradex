@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.22)
-project(EQMotionByPiradex VERSION 2.1.0)
+project(EQMotionByPiradex VERSION 2.2.0)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -74,6 +74,11 @@ target_compile_definitions(EQMotion PUBLIC
     JUCE_USE_CURL=0
     JUCE_VST3_CAN_REPLACE_VST2=0
     JUCE_DISPLAY_SPLASH_SCREEN=0)
+
+# PCC (Plugin Control Central): chaves de licença validadas online, mesma infraestrutura de todos os plugins Piradex
+set(PIRADEX_PCC_URL "https://ejjeittwyjttmevhajxo.supabase.co" CACHE STRING "URL do projeto Supabase do PCC")
+set(PIRADEX_PCC_PUBKEY "064c37512051906b9c8f1a9dfc962e9a1cd4c9f5b0f44ce66a12842b8e70a868" CACHE STRING "Chave pública Ed25519 do PCC (64 hex)")
+target_compile_definitions(EQMotion PUBLIC PIRADEX_PCC_URL="${PIRADEX_PCC_URL}" PIRADEX_PCC_PUBKEY="${PIRADEX_PCC_PUBKEY}" PIRADEX_PCC_VERSION="${PROJECT_VERSION}")
 
 if(MSVC)
     target_compile_options(EQMotion PRIVATE /utf-8 /bigobj)

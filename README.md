@@ -1,7 +1,7 @@
 # EQMotion by Piradex
 
 **Um equalizador dinâmico que mostra o que está a fazer.**
-Versão **2.1.0** · VST3, Audio Unit e AAX para macOS (10.13+, Intel e Apple Silicon — corre num MacBook Pro 2013 com Catalina) e VST3 + AAX para Windows 10/11 64 bits · interface em **Português e Inglês**.
+Versão **2.2.0** · VST3, Audio Unit e AAX para macOS (10.13+, Intel e Apple Silicon — corre num MacBook Pro 2013 com Catalina) e VST3 + AAX para Windows 10/11 64 bits · interface em **Português e Inglês**.
 
 ![EQMotion](docs/ui_principal.png)
 
@@ -19,6 +19,10 @@ Versão **2.1.0** · VST3, Audio Unit e AAX para macOS (10.13+, Intel e Apple Si
 | **Idioma** | Seletor **PT \| EN** em *Definições › Idioma* e no ecrã de senha · troca imediata · primeira abertura segue o idioma do sistema · escolha comum a todos os plugins Piradex · nomes dos presets de fábrica traduzidos (o nome guardado na sessão não muda) · nomes de automação no DAW fixos |
 | **Acesso** | Ecrã de senha igual aos outros plugins Piradex (senha master + senhas beta com validade, "lembrar neste computador"). Sem sessão o plugin deixa passar o áudio sem processar. |
 
+## Novo na 2.2.0
+
+* **Chaves de licença online (PCC)**: no ecrã de senha também se pode escrever uma chave `EQM-XXXX-XXXX-XXXX`, validada no PCC (Plugin Control Central). A chave fica presa ao primeiro computador que a ativar, funciona 14 dias sem internet e é revalidada no máximo 1 vez por dia; uma chave desativada no PCC deixa de abrir o plugin. A senha master `#Tecnico01` e as senhas beta continuam a funcionar sem internet, como antes.
+
 ## Novo na 2.1.0
 
 * **Smart Ops: passo 5 "Aplicar" corrigido** — os botões Aplicar/Reverter ficam sempre visíveis no fundo do painel (também na janela mínima) e o texto da revisão já não se sobrepõe.
@@ -28,7 +32,7 @@ Versão **2.1.0** · VST3, Audio Unit e AAX para macOS (10.13+, Intel e Apple Si
 
 ## Downloads
 
-Cada push compila e valida no GitHub Actions (auval Intel + Apple Silicon, pluginval, testes de áudio) e publica a versão **EQMotion by Piradex 2.1.0** na página *Releases* (no repositório do ANALYSER: `eqmotion-v2.1.0`):
+Cada push compila e valida no GitHub Actions (auval Intel + Apple Silicon, pluginval, testes de áudio) e publica a versão **EQMotion by Piradex 2.2.0** na página *Releases* (no repositório do ANALYSER: `eqmotion-v2.2.0`):
 
 * `EQMotion-by-Piradex-<versão>-macOS.dmg` — instalador `.pkg` + plugins para instalação manual
 * `EQMotion-by-Piradex-<versão>-Windows-Setup.exe` — instalador (ou o `.zip` para copiar à mão)
@@ -58,6 +62,11 @@ python3 tools/nova_senha_beta.py 2027-03-31
 ```
 
 e cole a linha gerada em `kKeys` (`Source/License.cpp`). O push volta a compilar tudo.
+
+**Chaves de licença (PCC):** criam-se no Supabase do PCC (SQL Editor):
+`select * from pcc_new_eqmotion_license('Nome','email','País','venda', null);` (ou `'beta', '2027-06-30'`).
+A chave em claro nunca sai do computador (vai `sha256(CHAVE|EQMOTION)`) e a resposta do servidor é assinada (Ed25519) e
+verificada com a chave pública embebida no build. Código: `Source/pcc/`.
 
 ## Documentação
 
