@@ -21,7 +21,7 @@ Versão **2.2.0** · VST3, Audio Unit e AAX para macOS (10.13+, Intel e Apple Si
 
 ## Novo na 2.2.0
 
-* **Chaves de licença online (PCC)**: no ecrã de senha também se pode escrever uma chave `EQM-XXXX-XXXX-XXXX`, validada no PCC (Plugin Control Central). A chave fica presa ao primeiro computador que a ativar, funciona 14 dias sem internet e é revalidada no máximo 1 vez por dia; uma chave desativada no PCC deixa de abrir o plugin. A senha master `#Tecnico01` e as senhas beta continuam a funcionar sem internet, como antes.
+* **Chaves de licença online (PCC)**: no ecrã de senha também se pode escrever uma chave `EQM-XXXX-XXXX-XXXX`, validada no PCC (Plugin Control Central). A chave fica presa ao primeiro computador que a ativar, funciona 14 dias sem internet e é revalidada no máximo 1 vez por dia; uma chave desativada no PCC deixa de abrir o plugin. A senha master e as senhas beta continuam a funcionar sem internet, como antes.
 
 ## Novo na 2.1.0
 

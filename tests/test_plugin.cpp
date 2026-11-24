@@ -1,3 +1,4 @@
+#include <cstdlib>
 // =============================================================================
 //  Teste de integração do EQMotion com instâncias reais do processador e do editor
 // =============================================================================
@@ -499,8 +500,12 @@ int main()
         bool expired = false;
         check (lic::License::matchPassword ("senha-errada", expired) < 0, "senha errada rejeitada", 0, 0);
         // senha master permanente (igual em todos os plugins Piradex)
-        const int master = lic::License::matchPassword ("#Tecnico01", expired);
-        check (master >= 0 && ! expired, "senha master reconhecida", master, 0);
+        // a master nunca fica no codigo: so e verificada se vier em PIRADEX_TEST_MASTER
+        if (const char* mp = std::getenv ("PIRADEX_TEST_MASTER"); mp != nullptr && *mp != 0)
+        {
+            const int master = lic::License::matchPassword (mp, expired);
+            check (master >= 0 && ! expired, "senha master reconhecida", master, 0);
+        }
         lic::License::get().unlockForTests();
     }
 
@@ -509,7 +514,7 @@ int main()
         namespace pc = piradex::pcc;
         check (pc::enabled(), "PCC ligado no build (URL + chave pública)");
         check (pc::looksLikeKey ("EQM-AB12-CD34-EF56") && pc::looksLikeKey (" eqm-ab12-cd34-ef56 "), "formato de chave reconhecido (espaços e minúsculas aceites)");
-        check (! pc::looksLikeKey ("#Tecnico01") && ! pc::looksLikeKey ("EQM-AB12-CD34"), "senhas normais não vão ao PCC");
+        check (! pc::looksLikeKey ("#SenhaNormal1") && ! pc::looksLikeKey ("EQM-AB12-CD34"), "senhas normais não vão ao PCC");
         check (pq::pcc::keyHashOf (pc::normaliseKey ("eqm-ab12-cd34-ef56").toStdString(), "EQMOTION") == "fc982277a36259222f59513d65150779e79e3c3edc2c010d5a291a9a9074ada6", "hash da chave igual ao que o servidor calcula");
         {
             const auto f = juce::File::getSpecialLocation (juce::File::tempDirectory).getChildFile ("pcc_test.settings");
