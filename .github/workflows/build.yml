@@ -24,7 +24,7 @@ jobs:
     needs: testes-dsp
     runs-on: macos-15  # o macos-14 deixou de existir no GitHub Actions (o job era cancelado logo ao arrancar)
     env:
-      VERSAO: "2.1.0"
+      VERSAO: "1.0.1"
       ART: build/Analyser_artefacts/Release
       # Assinatura PACE do AAX (opcional): só corre quando estes segredos existirem
       PACE_ACCOUNT: ${{ secrets.PACE_ACCOUNT }}
@@ -34,6 +34,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: pkgbuild sem verificacao de versao (a 1.0.1 instala por cima de versoes com numero maior)
+        working-directory: ${{ github.workspace }}
+        run: chmod +x ci/pkgbuild && echo "${{ github.workspace }}/ci" >> "$GITHUB_PATH"
       - name: Escolher um Xcode que ainda gera binarios para macOS 10.13 (o Xcode 26 sobe o minimo para 11.0)
         run: |
           ls -d /Applications/Xcode_*.app
@@ -142,7 +145,7 @@ jobs:
     needs: testes-dsp
     runs-on: windows-2022
     env:
-      VERSAO: "2.1.0"
+      VERSAO: "1.0.1"
       ART: build/Analyser_artefacts/Release
       PACE_ACCOUNT: ${{ secrets.PACE_ACCOUNT }}
       PACE_PASSWORD: ${{ secrets.PACE_PASSWORD }}
@@ -232,7 +235,7 @@ jobs:
     permissions:
       contents: write
     env:
-      VERSAO: "2.1.0"
+      VERSAO: "1.0.1"
       GH_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@v4
@@ -251,7 +254,7 @@ jobs:
           echo "$FICHEIROS"
           gh release create "$TAG" $FICHEIROS -R "$GITHUB_REPOSITORY" \
             --target "$GITHUB_SHA" --title "ANALYSER by Piradex $VERSAO" \
-            --notes "Interface em Português e Inglês (seletor PT | EN). AAX (Pro Tools): ficheiros *-AAX-*.zip, ver LEIA-ME-AAX.txt. macOS (10.13+, Intel e Apple Silicon): ANALYSER-by-Piradex-$VERSAO-macOS.dmg · Windows 10/11 64 bits: ANALYSER-by-Piradex-$VERSAO-Windows-Setup.exe (ou o .zip para instalação manual)."
+            --notes "Versao 1.0.1: login obrigatorio desde ja (senha master, senha beta valida ate 31/12/2026 ou chave de licenca validada online pelo PCC). Interface em Português e Inglês (seletor PT | EN). AAX (Pro Tools): ficheiros *-AAX-*.zip, ver LEIA-ME-AAX.txt. macOS (10.13+, Intel e Apple Silicon): ANALYSER-by-Piradex-$VERSAO-macOS.dmg · Windows 10/11 64 bits: ANALYSER-by-Piradex-$VERSAO-Windows-Setup.exe (ou o .zip para instalação manual)."
 
       - name: Guardar binários no ramo "builds"
         run: |
