@@ -108,6 +108,14 @@ jobs:
           cp -R "$ART/VST3/ANALYSER by Piradex.vst3" "$ART/AU/ANALYSER by Piradex.component" dmg/Plugins/
           hdiutil create -volname "ANALYSER by Piradex" -srcfolder dmg -ov -format UDZO "ANALYSER-by-Piradex-$VERSAO-macOS.dmg"
           ls -la *.pkg *.dmg
+      - name: Instaladores separados (Mac Apple Silicon e Mac Intel com macOS 10.13 / Catalina ou mais recente)
+        env:
+          SIGN_ID: ${{ secrets.MACOS_SIGN_IDENTITY }}
+          INSTALLER_ID: ${{ secrets.MACOS_INSTALLER_IDENTITY }}
+        run: |
+          V=$(grep -m1 -oE 'project\([^)]*VERSION [0-9]+\.[0-9]+\.[0-9]+' CMakeLists.txt | grep -oE '[0-9]+\.[0-9]+\.[0-9]+$')
+          bash ${{ github.workspace }}/ci/mac-split.sh installer/distribution.xml installer ANALYSER-by-Piradex "$V" "analyser-plugins.pkg|root|com.piradex.analyser.plugins|installer/scripts|/"
+
 
       # AAX: o Pro Tools normal só carrega plugins assinados pela PACE (wraptool).
       # Sem credenciais, sai um .zip "nao-assinado" (serve no Pro Tools Developer).
@@ -136,6 +144,8 @@ jobs:
         with:
           name: ANALYSER-by-Piradex-macOS${{ inputs.teste_sem_trial && '-TESTE-sem-trial' || '' }}
           path: |
+            ANALYSER-by-Piradex-*-macOS-AppleSilicon.pkg
+            ANALYSER-by-Piradex-*-macOS-Intel-macOS10.13.pkg
             ANALYSER-by-Piradex-*-macOS.dmg
             ANALYSER-by-Piradex-*-macOS-AAX-*.zip
             pluginval-macOS.log
@@ -250,7 +260,7 @@ jobs:
           ls -la dist
           TAG="v$VERSAO"
           gh release delete "$TAG" -y --cleanup-tag -R "$GITHUB_REPOSITORY" || true
-          FICHEIROS=$(find dist -type f \( -name '*.dmg' -o -name '*.exe' -o -name '*.zip' \))
+          FICHEIROS=$(find dist -type f \( -name '*.dmg' -o -name '*.pkg' -o -name '*.exe' -o -name '*.zip' \))
           echo "$FICHEIROS"
           gh release create "$TAG" $FICHEIROS -R "$GITHUB_REPOSITORY" \
             --target "$GITHUB_SHA" --title "ANALYSER by Piradex $VERSAO" \
