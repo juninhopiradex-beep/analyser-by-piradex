@@ -5,6 +5,8 @@
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
 #include <cstdio>
+#include <cstdlib>
+#include "License.h"
 
 using View = AnalysisResults::View;
 static int failures = 0;
@@ -421,6 +423,18 @@ int main()
     }
     else
         std::printf ("(defina ANL_TESTEQ com o caminho do TestEQ.vst3 para testar o modo Host)\n");
+
+    std::printf ("Licença online (PCC)\n");
+    {
+        namespace pc = piradex::pcc;
+        check (pc::enabled(), "PCC ligado no build (URL + chave pública)", 1, 1);
+        check (pc::looksLikeKey ("ANL-AB12-CD34-EF56") && pc::looksLikeKey (" anl-ab12-cd34-ef56 "), "formato de chave ANL reconhecido", 1, 1);
+        check (! pc::looksLikeKey ("#SenhaNormal1"), "senhas normais não vão ao PCC", 1, 1);
+        bool expired = false;
+        check (lic::License::matchPassword ("senha-errada", expired) < 0, "senha errada rejeitada", 1, 1);
+        if (const char* mp = std::getenv ("PIRADEX_TEST_MASTER"); mp != nullptr && *mp != 0)
+            check (lic::License::matchPassword (mp, expired) == 0 && ! expired, "senha master reconhecida", 1, 1);
+    }
 
     std::printf ("\n%s (%d falhas)\n", failures ? "FALHOU" : "TUDO OK", failures);
     gen.reset(); ana.reset(); mus.reset();

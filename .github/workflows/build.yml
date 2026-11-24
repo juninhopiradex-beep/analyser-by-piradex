@@ -19,7 +19,7 @@ jobs:
     needs: testes-dsp
     runs-on: macos-14
     env:
-      VERSAO: "2.0.0"
+      VERSAO: "2.1.0"
       ART: build/Analyser_artefacts/Release
       # Assinatura PACE do AAX (opcional): só corre quando estes segredos existirem
       PACE_ACCOUNT: ${{ secrets.PACE_ACCOUNT }}
@@ -132,7 +132,7 @@ jobs:
     needs: testes-dsp
     runs-on: windows-2022
     env:
-      VERSAO: "2.0.0"
+      VERSAO: "2.1.0"
       ART: build/Analyser_artefacts/Release
       PACE_ACCOUNT: ${{ secrets.PACE_ACCOUNT }}
       PACE_PASSWORD: ${{ secrets.PACE_PASSWORD }}
@@ -221,7 +221,7 @@ jobs:
     permissions:
       contents: write
     env:
-      VERSAO: "2.0.0"
+      VERSAO: "2.1.0"
       GH_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@v4

@@ -87,6 +87,8 @@ public:
 
 private:
     void submit();
+    void finished (lic::License::Result r);
+    bool checking = false;
     juce::Rectangle<int> card() const;
     juce::TextEditor password;
     juce::ToggleButton remember;

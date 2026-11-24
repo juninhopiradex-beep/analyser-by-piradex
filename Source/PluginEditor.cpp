@@ -872,7 +872,7 @@ LoginOverlay::LoginOverlay()
     addAndMakeVisible (language);
     lang.bind ([this]
     {
-        password.setTextToShowWhenEmpty (tr ("Senha", "Password"), pxcol::dim);
+        password.setTextToShowWhenEmpty (tr ("Senha ou chave ANL-XXXX-XXXX-XXXX", "Password or key ANL-XXXX-XXXX-XXXX"), pxcol::dim);
         remember.setButtonText (tr ("Lembrar neste computador", "Remember this computer"));
         enter.setButtonText (tr ("ENTRAR", "SIGN IN"));
         message.setText ({}, juce::dontSendNotification);
@@ -929,14 +929,32 @@ void LoginOverlay::visibilityChanged()
 
 void LoginOverlay::submit()
 {
-    if (password.isEmpty()) return;
+    if (password.isEmpty() || checking) return;
+    checking = true;
     message.setColour (juce::Label::textColourId, pxcol::dim);
     message.setText (tr ("A verificar…", "Checking…"), juce::dontSendNotification);
-    juce::MouseCursor::showWaitCursor();
+    const auto pw = password.getText();
+    const bool rem = remember.getToggleState();
+    juce::Component::SafePointer<LoginOverlay> safe (this);
+    // PBKDF2 (lento de propósito) e PCC (rede) correm numa thread de fundo: a interface não congela
+    juce::Thread::launch ([safe, pw, rem]
+    {
+        bool expired = false;
+        const int idx = lic::License::matchPassword (pw, expired);
+        piradex::pcc::Check online;                                   // chave de licença ANL-XXXX-XXXX-XXXX: pergunta ao PCC
+        if (idx < 0 && ! expired) online = lic::License::checkOnline (pw);
+        juce::MessageManager::callAsync ([safe, idx, expired, rem, online]
+        {
+            const auto r = online.outcome != piradex::pcc::Outcome::Disabled ? lic::License::get().applyOnline (online, rem)
+                                                                             : lic::License::get().applyMatch (idx, expired, rem);
+            if (safe != nullptr) safe->finished (r);
+        });
+    });
+}
 
-    const auto r = lic::License::get().tryPassword (password.getText(), remember.getToggleState());
-    juce::MouseCursor::hideWaitCursor();
-
+void LoginOverlay::finished (lic::License::Result r)
+{
+    checking = false;
     if (r == lic::License::Result::Ok)
     {
         password.clear();
@@ -946,8 +964,9 @@ void LoginOverlay::submit()
     }
     password.selectAll();
     message.setColour (juce::Label::textColourId, juce::Colour (0xffff6b6b));
-    message.setText (r == lic::License::Result::Expired ? tr ("Esta senha beta já expirou.", "This beta password has expired.")
-                                                        : tr ("Senha incorreta.", "Incorrect password."),
+    message.setText (r == lic::License::Result::Online  ? lic::License::get().onlineText()
+                   : r == lic::License::Result::Expired ? tr ("Esta senha beta já expirou.", "This beta password has expired.")
+                                                        : tr ("Senha ou licença incorreta.", "Incorrect password or licence."),
                      juce::dontSendNotification);
 }
 
@@ -1408,6 +1427,8 @@ void CurveAnalyzerEditor::showPluginMenu()
 
 void CurveAnalyzerEditor::timerCallback()
 {
+    if (lic::License::get().claimOnlineRecheck())                    // licença online: revalida no PCC 1x por dia
+        juce::Thread::launch ([] { lic::License::get().revalidateOnline(); });
     const bool locked = ! lic::License::get().isUnlocked();
     if (login.isVisible() != locked) { login.setVisible (locked); repaint(); }
 
