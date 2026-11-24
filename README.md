@@ -1,7 +1,7 @@
 # EQMotion by Piradex
 
 **Um equalizador dinâmico que mostra o que está a fazer.**
-Versão **2.2.0** · VST3, Audio Unit e AAX para macOS (10.13+, Intel e Apple Silicon — corre num MacBook Pro 2013 com Catalina) e VST3 + AAX para Windows 10/11 64 bits · interface em **Português e Inglês**.
+Versão **2.2.1** · VST3, Audio Unit e AAX para macOS (10.13+, Intel e Apple Silicon — corre num MacBook Pro 2013 com Catalina) e VST3 + AAX para Windows 10/11 64 bits · interface em **Português e Inglês**.
 
 ![EQMotion](docs/ui_principal.png)
 
