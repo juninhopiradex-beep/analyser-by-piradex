@@ -19,6 +19,9 @@ Versão **2.2.0** · VST3, Audio Unit e AAX para macOS (10.13+, Intel e Apple Si
 | **Idioma** | Seletor **PT \| EN** em *Definições › Idioma* e no ecrã de senha · troca imediata · primeira abertura segue o idioma do sistema · escolha comum a todos os plugins Piradex · nomes dos presets de fábrica traduzidos (o nome guardado na sessão não muda) · nomes de automação no DAW fixos |
 | **Acesso** | Ecrã de senha igual aos outros plugins Piradex (senha master + senhas beta com validade, "lembrar neste computador"). Sem sessão o plugin deixa passar o áudio sem processar. |
 
+## Novidades na 2.2.1
+* Nova senha master (a anterior estava escrita no repositório). Sem outras mudanças.
+
 ## Novo na 2.2.0
 
 * **Chaves de licença online (PCC)**: no ecrã de senha também se pode escrever uma chave `EQM-XXXX-XXXX-XXXX`, validada no PCC (Plugin Control Central). A chave fica presa ao primeiro computador que a ativar, funciona 14 dias sem internet e é revalidada no máximo 1 vez por dia; uma chave desativada no PCC deixa de abrir o plugin. A senha master e as senhas beta continuam a funcionar sem internet, como antes.
