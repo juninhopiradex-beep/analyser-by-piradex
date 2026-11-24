@@ -39,7 +39,7 @@ LoginOverlay::LoginOverlay()
     addAndMakeVisible (language);
     lang.bind ([this]
     {
-        password.setTextToShowWhenEmpty (tr ("Senha", "Password"), pal::textFaint.brighter (0.2f));
+        password.setTextToShowWhenEmpty (tr ("Senha ou chave MXS-XXXX-XXXX-XXXX", "Password or key MXS-XXXX-XXXX-XXXX"), pal::textFaint.brighter (0.2f));
         remember.setButtonText (tr ("Lembrar neste computador", "Remember this computer"));
         enter.setButtonText (tr ("Entrar", "Sign in"));
         message.setText ({}, juce::dontSendNotification);
@@ -131,21 +131,36 @@ void LoginOverlay::submit()
 
 void LoginOverlay::check()
 {
-    juce::MouseCursor::showWaitCursor();
-    const auto r = lic::License::get().tryPassword (password.getText(), remember.getToggleState());
-    juce::MouseCursor::hideWaitCursor();
-    checking = false;
-
-    if (r == lic::License::Result::Ok)
+    const auto pw = password.getText();
+    const bool rem = remember.getToggleState();
+    juce::Component::SafePointer<LoginOverlay> safe (this);
+    // PBKDF2 (lento de propósito) e PCC (rede) numa thread de fundo: a interface não congela
+    juce::Thread::launch ([safe, pw, rem]
     {
-        password.clear();
-        message.setText ({}, juce::dontSendNotification);
-        if (onUnlocked) onUnlocked();
-        return;
-    }
-    password.selectAll();
-    message.setColour (juce::Label::textColourId, pal::bypass);
-    message.setText (r == lic::License::Result::Expired ? tr ("Esta senha beta já expirou.", "This beta password has expired.")
-                                                        : tr ("Senha incorreta.", "Incorrect password."),
-                     juce::dontSendNotification);
+        bool expired = false;
+        const int idx = lic::License::matchPassword (pw, expired);
+        piradex::pcc::Check online;                                   // chave de licença MXS-XXXX-XXXX-XXXX: pergunta ao PCC
+        if (idx < 0 && ! expired) online = lic::License::checkOnline (pw);
+        juce::MessageManager::callAsync ([safe, idx, expired, rem, online]
+        {
+            const auto r = online.outcome != piradex::pcc::Outcome::Disabled ? lic::License::get().applyOnline (online, rem)
+                                                                             : lic::License::get().applyMatch (idx, expired, rem);
+            auto* self = safe.getComponent();
+            if (self == nullptr) return;
+            self->checking = false;
+            if (r == lic::License::Result::Ok)
+            {
+                self->password.clear();
+                self->message.setText ({}, juce::dontSendNotification);
+                if (self->onUnlocked) self->onUnlocked();
+                return;
+            }
+            self->password.selectAll();
+            self->message.setColour (juce::Label::textColourId, pal::bypass);
+            self->message.setText (r == lic::License::Result::Online  ? lic::License::get().onlineText()
+                                 : r == lic::License::Result::Expired ? tr ("Esta senha beta já expirou.", "This beta password has expired.")
+                                                                      : tr ("Senha ou licença incorreta.", "Incorrect password or licence."),
+                                   juce::dontSendNotification);
+        });
+    });
 }

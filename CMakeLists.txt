@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.22)
-project(MixspaceByPiradex VERSION 2.0.0)
+project(MixspaceByPiradex VERSION 2.1.0)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -70,6 +70,11 @@ target_compile_definitions(Mixspace PUBLIC
 if(MSVC)
     target_compile_options(Mixspace PRIVATE /utf-8)
 endif()
+
+# PCC (Plugin Control Central): chaves de licença validadas online, mesma infraestrutura de todos os plugins Piradex
+set(PIRADEX_PCC_URL "https://ejjeittwyjttmevhajxo.supabase.co" CACHE STRING "URL do projeto Supabase do PCC")
+set(PIRADEX_PCC_PUBKEY "064c37512051906b9c8f1a9dfc962e9a1cd4c9f5b0f44ce66a12842b8e70a868" CACHE STRING "Chave pública Ed25519 do PCC (64 hex)")
+target_compile_definitions(Mixspace PUBLIC PIRADEX_PCC_URL="${PIRADEX_PCC_URL}" PIRADEX_PCC_PUBKEY="${PIRADEX_PCC_PUBKEY}" PIRADEX_PCC_VERSION="${PROJECT_VERSION}")
 
 target_link_libraries(Mixspace
     PRIVATE

@@ -96,12 +96,17 @@ tests/                      testes do núcleo e de integração (com capturas da
 installer/                  .pkg/.dmg (macOS) e Inno Setup (Windows)
 ```
 
+## Novidades na 2.1.0
+- **Chaves de licença online (PCC):** no ecrã de senha também se pode escrever uma chave `MXS-XXXX-XXXX-XXXX`, validada no PCC. A chave fica presa ao primeiro computador, funciona 14 dias sem internet e é revalidada 1x por dia. A senha master e as senhas beta continuam a funcionar sem internet.
+- O login já não congela a interface (verificação em segundo plano).
+- Nova senha master; CI no macos-15 com Xcode 15/16 (mantém o mínimo macOS 10.13 / Catalina).
+
 ## Novidades na 2.0.0
 
 - **Português e Inglês:** seletor **PT | EN** no topo, no menu do logótipo (*Idioma · Language*) e no ecrã de senha. Troca imediata, sem reabrir. Na primeira abertura segue o idioma do sistema; a escolha é comum a todos os plugins Piradex. Os nomes de automação no DAW não mudam.
 - **AAX** (Pro Tools) para macOS e Windows.
 
-## Estado (v2.0.0)
+## Estado (v2.1.0)
 
 Feito: Main + Sidechain, spectrum display, SPACE, RANGE, FOCUS, Low/High Cut, Attack/Release, Smooth, Stereo/Mid/Side/L/R, Delta, SC Listen, Freeze, Masking meter, Bypass click-free, Live/Mix/Master, interface redimensionável, acesso por senha (master + chaves beta).
 

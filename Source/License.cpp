@@ -127,7 +127,44 @@ void License::setUnlocked (const KeyEntry& k)
 {
     currentKey  = &k;
     currentKind = k.kind;
+    online.store (false);
     unlocked.store (true);
+}
+
+void License::setUnlockedOnline()
+{
+    currentKey  = nullptr;
+    currentKind = pcc.role() == "master" ? Kind::Master : Kind::Trial;
+    online.store (true);
+    unlocked.store (true);
+}
+
+License::Result License::applyOnline (const piradex::pcc::Check& c, bool remember)
+{
+    if (c.outcome != piradex::pcc::Outcome::Ok)
+    {
+        lastOnline = piradex::pcc::uiText (c, ! piradex::i18n::isPortuguese());
+        return Result::Online;
+    }
+    pcc.commit (c, remember, *props);
+    props->removeValue ("key"); props->removeValue ("token"); props->saveIfNeeded();
+    setUnlockedOnline();
+    return Result::Ok;
+}
+
+bool License::claimOnlineRecheck()
+{
+    const auto now = piradex::pcc::unixNow();
+    if (! online.load() || ! piradex::pcc::enabled() || now - lastRecheckTry.load() < 3600) return false;   // sem rede: tenta de hora a hora
+    if (now - props->getValue ("pccCheck").getLargeIntValue() < (juce::int64) pq::pcc::kRecheckHours * 3600) return false;
+    lastRecheckTry.store (now);
+    return true;
+}
+
+void License::revalidateOnline()
+{
+    if (pcc.revalidate (*props) == piradex::pcc::Session::Recheck::Revoked)
+        juce::MessageManager::callAsync ([] { License::get().lock(); });
 }
 
 void License::tryAutoUnlock()
@@ -141,6 +178,7 @@ void License::tryAutoUnlock()
             setUnlocked (k);
             return;
         }
+    if (pcc.restore (*props)) setUnlockedOnline();      // chave de licença (PCC) lembrada neste computador
 }
 
 int License::matchPassword (const juce::String& password, bool& expired)
@@ -190,8 +228,10 @@ License::Result License::tryPassword (const juce::String& password, bool remembe
 void License::lock()
 {
     unlocked.store (false);
+    online.store (false);
     currentKind = Kind::None;
     currentKey = nullptr;
+    pcc.clear (*props);
     props->removeValue ("key");
     props->removeValue ("token");
     props->saveIfNeeded();
@@ -205,10 +245,19 @@ void License::checkExpiry()
 {
     if (unlocked.load() && currentKey != nullptr && isExpired (*currentKey))
         lock();
+    else if (unlocked.load() && online.load() && ! pcc.stillGood())
+        lock();                                         // licença online expirou ou ficou 14 dias sem validar
 }
 
 juce::String License::statusText() const
 {
+    if (unlocked.load() && online.load())
+    {
+        const auto e = pcc.expires(); int y = 0, m = 0, d = 0;
+        if (currentKind == Kind::Master || ! pq::pcc::parseDate (e, y, m, d)) return piradex::i18n::tr ("Licença completa", "Full license");
+        return piradex::i18n::tr ("LICENÇA · válida até ", "LICENCE · valid until ")
+             + juce::String (d).paddedLeft ('0', 2) + "/" + juce::String (m).paddedLeft ('0', 2) + "/" + juce::String (y);
+    }
     if (! unlocked.load() || currentKey == nullptr) return {};
     if (currentKind == Kind::Master) return piradex::i18n::tr ("Licença completa", "Full license");
     return piradex::i18n::tr ("BETA · válida até ", "BETA · valid until ")
