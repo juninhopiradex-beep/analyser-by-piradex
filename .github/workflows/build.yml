@@ -4,6 +4,11 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      teste_sem_trial:
+        description: "Build de TESTE com o periodo aberto desligado (pede login ja). Nao publica release."
+        type: boolean
+        default: false
 
 jobs:
   testes-dsp:
@@ -41,6 +46,7 @@ jobs:
           cmake -B build -G Xcode
           -DCMAKE_OSX_ARCHITECTURES="arm64;x86_64"
           -DCMAKE_OSX_DEPLOYMENT_TARGET=10.13
+          -DPIRADEX_NO_TRIAL=${{ inputs.teste_sem_trial && 'ON' || 'OFF' }}
 
       - name: Compilar VST3 + AU + AAX
         run: cmake --build build --config Release --target Analyser_VST3 Analyser_AU Analyser_AAX -- -quiet
@@ -125,7 +131,7 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: ANALYSER-by-Piradex-macOS
+          name: ANALYSER-by-Piradex-macOS${{ inputs.teste_sem_trial && '-TESTE-sem-trial' || '' }}
           path: |
             ANALYSER-by-Piradex-*-macOS.dmg
             ANALYSER-by-Piradex-*-macOS-AAX-*.zip
@@ -148,7 +154,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Configurar (x64, Visual Studio 2022)
-        run: cmake -B build -G "Visual Studio 17 2022" -A x64
+        run: cmake -B build -G "Visual Studio 17 2022" -A x64 -DPIRADEX_NO_TRIAL=${{ inputs.teste_sem_trial && 'ON' || 'OFF' }}
 
       - name: Compilar VST3 + AAX
         run: cmake --build build --config Release --target Analyser_VST3 Analyser_AAX --parallel 4
@@ -214,13 +220,14 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: ANALYSER-by-Piradex-Windows
+          name: ANALYSER-by-Piradex-Windows${{ inputs.teste_sem_trial && '-TESTE-sem-trial' || '' }}
           path: |
             out-win/*
             pluginval-Windows.log
 
   publicar:
     needs: [macos, windows]
+    if: ${{ !inputs.teste_sem_trial }}
     runs-on: ubuntu-latest
     permissions:
       contents: write

@@ -105,3 +105,9 @@ if(ANL_BUILD_TESTS)
     target_compile_definitions(pca_plugin_test PRIVATE $<TARGET_PROPERTY:Analyser,COMPILE_DEFINITIONS>)
     target_link_libraries(pca_plugin_test PRIVATE Analyser)
 endif()
+
+# Build de teste para o dono: desliga o periodo aberto ate 31/12/2026 (o ecra de login aparece ja). Nunca para a loja.
+option(PIRADEX_NO_TRIAL "Build de teste sem periodo aberto" OFF)
+if (PIRADEX_NO_TRIAL)
+    target_compile_definitions(Analyser PUBLIC PIRADEX_NO_TRIAL=1)
+endif()
