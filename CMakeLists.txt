@@ -99,3 +99,9 @@ if(MXS_BUILD_TESTS)
     target_compile_definitions(mxs_plugin_test PRIVATE $<TARGET_PROPERTY:Mixspace,COMPILE_DEFINITIONS>)
     target_link_libraries(mxs_plugin_test PRIVATE Mixspace)
 endif()
+
+# Build de teste para o dono: desliga o periodo aberto ate 31/12/2026 (o ecra de login aparece ja). Nunca para a loja.
+option(PIRADEX_NO_TRIAL "Build de teste sem periodo aberto" OFF)
+if (PIRADEX_NO_TRIAL)
+    target_compile_definitions(Mixspace PUBLIC PIRADEX_NO_TRIAL=1)
+endif()
