@@ -9,7 +9,7 @@ on:
 # Ramo "eqmotion" dentro de outro repo: release "eqmotion-vX" (sem passar a "Latest") + ramo "eqmotion-builds".
 
 env:
-  VERSAO: "1.0.1"
+  VERSAO: "1.0.2"
 
 jobs:
   testes:
@@ -49,7 +49,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: pkgbuild sem verificacao de versao (a 1.0.1 instala por cima de versoes com numero maior)
+      - name: pkgbuild sem verificacao de versao (a 1.0.2 instala por cima de versoes com numero maior)
         working-directory: ${{ github.workspace }}
         run: chmod +x ci/pkgbuild && echo "${{ github.workspace }}/ci" >> "$GITHUB_PATH"
       - name: Escolher um Xcode que ainda gera binarios para macOS 10.13 (o Xcode 26 sobe o minimo para 11.0)
@@ -275,7 +275,7 @@ jobs:
           echo "$FICHEIROS"
           gh release create "$TAG" $FICHEIROS -R "$GITHUB_REPOSITORY" \
             --latest=$LATEST --target "$GITHUB_SHA" --title "EQMotion by Piradex $VERSAO" \
-            --notes "Versao 1.0.1: login obrigatorio desde ja (senha master, senha beta valida ate 31/12/2026 ou chave de licenca validada online pelo PCC). Desde a 2.0.1: escala vertical automática e knob ESCALA. Interface em Português e Inglês (seletor PT | EN). AAX (Pro Tools): ficheiros *-AAX-*.zip, ver LEIA-ME-AAX.txt. Equalizador dinâmico de 24 bandas. macOS 10.13+ (Intel e Apple Silicon): EQMotion-by-Piradex-$VERSAO-macOS.dmg · Windows 10/11 64 bits: EQMotion-by-Piradex-$VERSAO-Windows-Setup.exe (ou o .zip para instalação manual)."
+            --notes "Versao 1.0.2: login obrigatorio desde ja (senha master, senha beta valida ate 31/12/2026 ou chave de licenca validada online pelo PCC). Desde a 2.0.1: escala vertical automática e knob ESCALA. Interface em Português e Inglês (seletor PT | EN). AAX (Pro Tools): ficheiros *-AAX-*.zip, ver LEIA-ME-AAX.txt. Equalizador dinâmico de 24 bandas. macOS 10.13+ (Intel e Apple Silicon): EQMotion-by-Piradex-$VERSAO-macOS.dmg · Windows 10/11 64 bits: EQMotion-by-Piradex-$VERSAO-Windows-Setup.exe (ou o .zip para instalação manual)."
 
       - name: Guardar binários num ramo próprio
         run: |

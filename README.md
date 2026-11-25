@@ -1,7 +1,13 @@
 # EQMotion by Piradex
 
 **Um equalizador dinâmico que mostra o que está a fazer.**
-Versão **2.2.1** · VST3, Audio Unit e AAX para macOS (10.13+, Intel e Apple Silicon — corre num MacBook Pro 2013 com Catalina) e VST3 + AAX para Windows 10/11 64 bits · interface em **Português e Inglês**.
+Versão **1.0.1** · VST3, Audio Unit e AAX para macOS (10.13+, Intel e Apple Silicon — corre num MacBook Pro 2013 com Catalina) e VST3 + AAX para Windows 10/11 64 bits · interface em **Português e Inglês**.
+
+> **Versão atual: 1.0.2** (todos os plugins Piradex passaram a ter a mesma numeração; as versões abaixo de "Histórico" são da numeração antiga).
+>
+> * **Login:** obrigatório desde a 1.0.1 — senha master, senha beta (válida até 31/12/2026) ou chave de licença validada online no PCC. Sem sessão, o áudio passa intacto.
+> * **Instaladores (loja www.beatfreakstudio.com/loja):** Mac Apple Silicon (`…-macOS-AppleSilicon.pkg`), Mac Intel com macOS 10.13 ou mais recente (`…-macOS-Intel-macOS10.13.pkg`), Windows (`…-Windows-Setup.exe`) e AAX para Pro Tools (`…-AAX-*.zip`, ver LEIA-ME-AAX.txt).
+> * **Criador e desenvolvedor:** Ricardo Amorim / Juninho Piradex.
 
 ![EQMotion](docs/ui_principal.png)
 
@@ -19,14 +25,14 @@ Versão **2.2.1** · VST3, Audio Unit e AAX para macOS (10.13+, Intel e Apple Si
 | **Idioma** | Seletor **PT \| EN** em *Definições › Idioma* e no ecrã de senha · troca imediata · primeira abertura segue o idioma do sistema · escolha comum a todos os plugins Piradex · nomes dos presets de fábrica traduzidos (o nome guardado na sessão não muda) · nomes de automação no DAW fixos |
 | **Acesso** | Ecrã de senha igual aos outros plugins Piradex (senha master + senhas beta com validade, "lembrar neste computador"). Sem sessão o plugin deixa passar o áudio sem processar. |
 
-## Novidades na 2.2.1
+## Histórico — 2.2.1 (numeração antiga)
 * Nova senha master (a anterior estava escrita no repositório). Sem outras mudanças.
 
-## Novo na 2.2.0
+## Histórico — 2.2.0 (numeração antiga)
 
 * **Chaves de licença online (PCC)**: no ecrã de senha também se pode escrever uma chave `EQM-XXXX-XXXX-XXXX`, validada no PCC (Plugin Control Central). A chave fica presa ao primeiro computador que a ativar, funciona 14 dias sem internet e é revalidada no máximo 1 vez por dia; uma chave desativada no PCC deixa de abrir o plugin. A senha master e as senhas beta continuam a funcionar sem internet, como antes.
 
-## Novo na 2.1.0
+## Histórico — 2.1.0 (numeração antiga)
 
 * **Smart Ops: passo 5 "Aplicar" corrigido** — os botões Aplicar/Reverter ficam sempre visíveis no fundo do painel (também na janela mínima) e o texto da revisão já não se sobrepõe.
 * **9 operações novas**: Limpar lama, Caixa e nasal, Domar dureza, Remover zumbido 50/60 Hz, Controlar graves (boom), Auto dinâmico, Realçar presença, Realçar ar, Realçar calor — menu agrupado em *Corrigir*, *Dinâmica* e *Realçar e equilibrar*.
@@ -37,7 +43,7 @@ Versão **2.2.1** · VST3, Audio Unit e AAX para macOS (10.13+, Intel e Apple Si
 
 Cada push compila e valida no GitHub Actions (auval Intel + Apple Silicon, pluginval, testes de áudio) e publica a versão **EQMotion by Piradex 2.2.1** na página *Releases* (no repositório do ANALYSER: `eqmotion-v2.2.1`):
 
-* `EQMotion-by-Piradex-<versão>-macOS.dmg` — instalador `.pkg` + plugins para instalação manual
+* `EQMotion-by-Piradex-<versão>-macOS-AppleSilicon.pkg` / `…-macOS-Intel-macOS10.13.pkg` — instalador `.pkg` + plugins para instalação manual
 * `EQMotion-by-Piradex-<versão>-Windows-Setup.exe` — instalador (ou o `.zip` para copiar à mão)
 * `EQMotion-by-Piradex-<versão>-macOS-AAX-*.zip` e `...-Windows-AAX-*.zip` — Pro Tools. O Pro Tools normal só carrega AAX assinados pela PACE: com os *Secrets* `PACE_ACCOUNT`, `PACE_PASSWORD`, `PACE_WCGUID`, `PACE_EDEN_URL`, `PACE_EDEN_WIN_URL`, `PACE_KEYFILE_B64`, `PACE_KEYPASSWORD` o CI assina sozinho (`...-AAX-assinado.zip`); sem eles sai `...-AAX-nao-assinado.zip` (só *Pro Tools Developer*).
 
