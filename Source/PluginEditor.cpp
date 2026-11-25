@@ -839,109 +839,30 @@ void GraphView::drawSweep (juce::Graphics& g)
 // =============================================================================
 //  Login
 // =============================================================================
-LoginOverlay::LoginOverlay()
+LoginOverlay::LoginOverlay()   // 1.0.2: ecra de entrada unico Piradex (kit partilhado)
 {
-    password.setPasswordCharacter ((juce::juce_wchar) 0x2022);
-    password.setFont (juce::Font (juce::FontOptions (18.0f)));
-    password.setJustification (juce::Justification::centred);
-    password.setColour (juce::TextEditor::outlineColourId, pxcol::outline);
-    password.setColour (juce::TextEditor::focusedOutlineColourId, pxcol::green);
-    password.onReturnKey = [this] { submit(); };
-    addAndMakeVisible (password);
-
-    remember.setToggleState (true, juce::dontSendNotification);
-    remember.setColour (juce::ToggleButton::textColourId, pxcol::text);
-    remember.setColour (juce::ToggleButton::tickColourId, pxcol::green);
-    remember.setColour (juce::ToggleButton::tickDisabledColourId, pxcol::outline);
-    addAndMakeVisible (remember);
-
-    enter.setToggleState (true, juce::dontSendNotification);   // contorno verde
-    enter.onClick = [this] { submit(); };
-    addAndMakeVisible (enter);
-
-    message.setJustificationType (juce::Justification::centred);
-    message.setFont (juce::Font (juce::FontOptions (14.0f)));
-    addAndMakeVisible (message);
-
-    language.accent = pxcol::green;
-    language.background = juce::Colours::black;
-    language.outline = pxcol::outline;
-    language.text = pxcol::text;
-    language.textDim = pxcol::dim;
-    language.hoverFill = juce::Colour (0xff222222);
-    addAndMakeVisible (language);
-    lang.bind ([this]
-    {
-        password.setTextToShowWhenEmpty (tr ("Senha ou chave ANL-XXXX-XXXX-XXXX", "Password or key ANL-XXXX-XXXX-XXXX"), pxcol::dim);
-        remember.setButtonText (tr ("Lembrar neste computador", "Remember this computer"));
-        enter.setButtonText (tr ("ENTRAR", "SIGN IN"));
-        message.setText ({}, juce::dontSendNotification);
-        password.repaint();
-    });
-    lang.onChange = [this] { repaint(); };
+    screen.onSubmit = [this] (const juce::String& pw, bool rem) { submit (pw, rem); };
+    addAndMakeVisible (screen);
 }
 
-juce::Rectangle<int> LoginOverlay::card() const
-{
-    return getLocalBounds().withSizeKeepingCentre (440, 330);
-}
-
-void LoginOverlay::paint (juce::Graphics& g)
-{
-    g.fillAll (pxcol::bg.withAlpha (0.96f));
-    const auto c = card().toFloat();
-    g.setColour (juce::Colour (0xff121212));
-    g.fillRoundedRectangle (c, 12.0f);
-    g.setColour (pxcol::outline);
-    g.drawRoundedRectangle (c, 12.0f, 1.4f);
-
-    auto t = c.reduced (24.0f, 22.0f);
-    g.setColour (pxcol::green);
-    g.setFont (juce::Font (juce::FontOptions (40.0f, juce::Font::bold)));
-    g.drawText ("ANALYSER", t.removeFromTop (48.0f), juce::Justification::centred);
-    g.setColour (pxcol::text);
-    g.setFont (juce::Font (juce::FontOptions (16.0f)));
-    g.drawText ("by Piradex", t.removeFromTop (22.0f), juce::Justification::centred);
-    g.setColour (pxcol::dim);
-    g.setFont (juce::Font (juce::FontOptions (13.0f)));
-    g.drawText (tr ("Introduza a sua senha para começar", "Enter your password to get started"), t.removeFromTop (30.0f), juce::Justification::centred);
-}
-
-void LoginOverlay::resized()
-{
-    auto c = card().reduced (40, 0);
-    c.removeFromTop (138);
-    password.setBounds (c.removeFromTop (40));
-    c.removeFromTop (12);
-    remember.setBounds (c.removeFromTop (26).withSizeKeepingCentre (230, 26));
-    c.removeFromTop (12);
-    enter.setBounds (c.removeFromTop (38).withSizeKeepingCentre (160, 38));
-    c.removeFromTop (8);
-    message.setBounds (c.removeFromTop (40));
-    language.setBounds (card().removeFromBottom (42).removeFromRight (100).reduced (14, 9));
-}
+void LoginOverlay::resized() { screen.setBounds (getLocalBounds()); }
 
 void LoginOverlay::visibilityChanged()
 {
-    if (isVisible() && isShowing())
-        password.grabKeyboardFocus();
+    if (isVisible() && isShowing()) screen.focusField();
 }
 
-void LoginOverlay::submit()
+void LoginOverlay::submit (const juce::String& pw, bool rem)
 {
-    if (password.isEmpty() || checking) return;
+    if (checking) return;
     checking = true;
-    message.setColour (juce::Label::textColourId, pxcol::dim);
-    message.setText (tr ("A verificar…", "Checking…"), juce::dontSendNotification);
-    const auto pw = password.getText();
-    const bool rem = remember.getToggleState();
+    screen.setBusy (true);
     juce::Component::SafePointer<LoginOverlay> safe (this);
-    // PBKDF2 (lento de propósito) e PCC (rede) correm numa thread de fundo: a interface não congela
     juce::Thread::launch ([safe, pw, rem]
     {
         bool expired = false;
         const int idx = lic::License::matchPassword (pw, expired);
-        piradex::pcc::Check online;                                   // chave de licença ANL-XXXX-XXXX-XXXX: pergunta ao PCC
+        piradex::pcc::Check online;                                   // chave de licenca ANL-XXXX-XXXX-XXXX: pergunta ao PCC
         if (idx < 0 && ! expired) online = lic::License::checkOnline (pw);
         juce::MessageManager::callAsync ([safe, idx, expired, rem, online]
         {
@@ -955,19 +876,16 @@ void LoginOverlay::submit()
 void LoginOverlay::finished (lic::License::Result r)
 {
     checking = false;
+    screen.setBusy (false);
     if (r == lic::License::Result::Ok)
     {
-        password.clear();
-        message.setText ({}, juce::dontSendNotification);
+        screen.clearField(); screen.setStatus ({}, false);
         if (onUnlocked) onUnlocked();
         return;
     }
-    password.selectAll();
-    message.setColour (juce::Label::textColourId, juce::Colour (0xffff6b6b));
-    message.setText (r == lic::License::Result::Online  ? lic::License::get().onlineText()
-                   : r == lic::License::Result::Expired ? tr ("Esta senha beta já expirou.", "This beta password has expired.")
-                                                        : tr ("Senha ou licença incorreta.", "Incorrect password or licence."),
-                     juce::dontSendNotification);
+    screen.setStatus (r == lic::License::Result::Online  ? lic::License::get().onlineText()
+                    : r == lic::License::Result::Expired ? tr ("Esta senha beta j\xc3\xa1 expirou.", "This beta password has expired.")
+                                                         : tr ("Senha ou licen\xc3\xa7" "a incorreta.", "Incorrect password or licence."), true);
 }
 
 // =============================================================================
@@ -1070,11 +988,15 @@ CurveAnalyzerEditor::CurveAnalyzerEditor (CurveAnalyzerProcessor& p)
     login.onUnlocked = [this] { login.setVisible (false); repaint(); };
     addChildComponent (login);
     login.setVisible (! lic::License::get().isUnlocked());
+    gear.colour = pxcol::dim; gear.hoverColour = pxcol::text;
+    gear.showWelcome = [this] { showWelcome(); };
+    addAndMakeVisible (gear);
 
     setResizable (true, true);
     setResizeLimits (1000, 600, 2600, 1500);
     setSize (1280, 740);
     startTimerHz (30);
+    if (piradex::kit::Welcome::shouldShow ("analyser", JucePlugin_VersionString)) showWelcome();   // 1.0.2
 }
 
 CurveAnalyzerEditor::~CurveAnalyzerEditor()
@@ -1274,7 +1196,10 @@ void CurveAnalyzerEditor::resized()
         foot.removeFromRight (8);
     }
 
-    langSwitch.setBounds (foot.removeFromRight (82).reduced (0, 2));
+    langSwitch.setBounds (foot.removeFromRight (112).reduced (0, 2));
+    foot.removeFromRight (6);
+    gear.setBounds (foot.removeFromRight (24).reduced (0, 1));
+    if (welcome != nullptr) welcome->setBounds (getLocalBounds());
     graph.setBounds (getLocalBounds().withTrimmedTop (144).withTrimmedBottom (40 + 22).reduced (margin, 2));
     login.setBounds (getLocalBounds());
 }
@@ -1567,4 +1492,27 @@ void CurveAnalyzerEditor::exportCsv()
         }
         file.replaceWithText (out, false, false, "\r\n");
     });
+}
+
+// 1.0.2: tutorial e novidades (3 primeiras aberturas de cada versao; tambem na roda dentada)
+void CurveAnalyzerEditor::showWelcome()
+{
+    using W = piradex::kit::WelcomeItem;
+    welcome = std::make_unique<piradex::kit::Welcome> ("ANALYSER", pxcol::green, JucePlugin_VersionString, std::vector<W> {
+        W { "Gerador e analisador", "Generator and analyser",
+            "Ponha um ANALYSER como GERADOR antes do plugin ou do equipamento e outro como ANALISADOR depois. Ou use o MODO HOST (1 inst\xc3\xa2ncia), que carrega o plugin l\xc3\xa1 dentro.",
+            "Put one ANALYSER as GENERATOR before the plugin or hardware and another as ANALYSER after it. Or use HOST MODE (1 instance), which loads the plugin inside." },
+        W { "Curva, onda, espetro e varrimento", "Curve, wave, spectrum and sweep",
+            "Quatro vistas: resposta em frequ\xc3\xaancia e fase, forma de onda, espetro com harm\xc3\xb3nicos e varrimento de n\xc3\xadvel.",
+            "Four views: frequency and phase response, waveform, spectrum with harmonics and level sweep." },
+        W { "Comparar e exportar", "Compare and export",
+            "+ REF guarda a curva atual como refer\xc3\xaa" "ncia (at\xc3\xa9 4) para comparar; EXPORTAR grava os resultados em CSV.",
+            "+ REF keeps the current curve as a reference (up to 4) to compare; EXPORT saves the results as CSV." },
+        W { "Novo na 1.0.2", "New in 1.0.2",
+            "Idioma PT / EN / \xe4\xb8\xad\xe6\x96\x87 na roda dentada (rodap\xc3\xa9), novo ecr\xc3\xa3 de entrada Piradex e este guia nas 3 primeiras aberturas de cada vers\xc3\xa3o.",
+            "PT / EN / \xe4\xb8\xad\xe6\x96\x87 language in the gear menu (footer), new Piradex sign-in screen and this guide on the first 3 launches of each version." } });
+    welcome->onClose = [safe = juce::Component::SafePointer<CurveAnalyzerEditor> (this)] { if (safe != nullptr) juce::MessageManager::callAsync ([safe] { if (safe != nullptr) safe->welcome.reset(); }); };
+    addAndMakeVisible (*welcome);
+    welcome->setBounds (getLocalBounds());
+    welcome->toFront (true);
 }

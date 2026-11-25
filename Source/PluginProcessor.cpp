@@ -1,4 +1,5 @@
 #include "PluginProcessor.h"
+#include "i18n/PiradexLanguage.h"
 #include "PluginEditor.h"
 
 using View = AnalysisResults::View;
@@ -46,6 +47,7 @@ CurveAnalyzerProcessor::CurveAnalyzerProcessor()
                         .withInput  ("Sidechain", juce::AudioChannelSet::stereo(), false)),
       apvts (*this, nullptr, "AnalyserByPiradex", createLayout())
 {
+    piradex::i18n::registerPluginTable();   // 1.0.2: traducoes PT / EN / ZH
     lic::License::get();   // carrega o estado da licença na thread de mensagens
     juce::addDefaultFormatsToManager (formatManager);
     ringWet.assign ((size_t) kRingSize, 0.0f);

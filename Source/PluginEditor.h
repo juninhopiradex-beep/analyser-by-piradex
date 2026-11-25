@@ -2,6 +2,7 @@
 
 #include "PluginProcessor.h"
 #include "i18n/PiradexLanguageUI.h"
+#include "i18n/PiradexKitUI.h"
 
 namespace pxcol
 {
@@ -80,22 +81,15 @@ class LoginOverlay : public juce::Component
 {
 public:
     LoginOverlay();
-    void paint (juce::Graphics&) override;
     void resized() override;
     void visibilityChanged() override;
     std::function<void()> onUnlocked;
 
 private:
-    void submit();
+    void submit (const juce::String& pw, bool rem);
     void finished (lic::License::Result r);
     bool checking = false;
-    juce::Rectangle<int> card() const;
-    juce::TextEditor password;
-    juce::ToggleButton remember;
-    juce::TextButton enter { "ENTRAR" };
-    juce::Label message;
-    piradex::i18n::LanguageSwitch language;
-    piradex::i18n::Binder lang;
+    piradex::kit::LoginScreen screen { "ANALYSER", juce::Colour (0xff3ddc84), JucePlugin_VersionString };
 };
 
 class CurveAnalyzerEditor : public juce::AudioProcessorEditor, private juce::Timer
@@ -161,6 +155,9 @@ private:
     std::vector<CurveAnalyzerProcessor::InstalledPlugin> pluginList;
 
     piradex::i18n::LanguageSwitch langSwitch;
+    piradex::kit::GearButton gear;                     // 1.0.2: idioma + tutorial
+    std::unique_ptr<piradex::kit::Welcome> welcome;
+    void showWelcome();
     piradex::i18n::Binder lang;          // por último: aplica os textos depois de tudo construído
 
     static juce::String U8label (const char* s) { return juce::String::fromUTF8 (s); }
