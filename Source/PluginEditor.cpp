@@ -53,7 +53,8 @@ EQMotionEditor::EQMotionEditor (EQMotionProcessor& p)
         auto s = std::make_unique<SettingsPanel> (proc, [this] (float sc) { setUiScale (sc); }, [this] (float r) { if (r <= 0) graph.setAutoScale (true); else graph.setDbRange (r); },
                                                      graph.isAutoScale() ? 0.0f : graph.dbRangeTarget());
         s->onLogout = [this] { updateLock(); };
-        s->onTutorial = [safe = juce::Component::SafePointer<EQMotionEditor> (this)] { juce::MessageManager::callAsync ([safe] { if (safe != nullptr) safe->showWelcome(); }); };
+        juce::Component::SafePointer<EQMotionEditor> safeEd (this);   // fora do lambda (MSVC)
+        s->onTutorial = [safeEd] { juce::MessageManager::callAsync ([safeEd] { if (safeEd != nullptr) safeEd->showWelcome(); }); };
         showCallout (std::move (s), anchor);
     };
     proc.onSmartChanged = [safe = juce::Component::SafePointer<EQMotionEditor> (this)]
