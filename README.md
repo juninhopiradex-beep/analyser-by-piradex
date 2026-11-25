@@ -2,7 +2,13 @@
 
 Analisador de curvas para ver **exatamente o que um plugin ou um equipamento analógico faz ao som**: resposta em frequência, fase, latência, harmónicos/THD — e também o que o equipamento faz **com música real** (dry vs wet).
 
-Versão **2.1.0**. Formatos: **VST3**, **AU** e **AAX** para macOS **10.13 ou superior**, binário universal (**Intel** e **Apple Silicon**) — testado para correr em Macs de 2013 com Catalina; e **VST3 + AAX para Windows 10/11 (64 bits)**, com instalador. Interface em **Português e Inglês**. Código JUCE 8, C++17.
+> **Versão atual: 1.0.2** (todos os plugins Piradex passaram a ter a mesma numeração; as versões abaixo de "Histórico" são da numeração antiga).
+>
+> * **Login:** obrigatório desde a 1.0.1 — senha master, senha beta (válida até 31/12/2026) ou chave de licença validada online no PCC. Sem sessão, o áudio passa intacto.
+> * **Instaladores (loja www.beatfreakstudio.com/loja):** Mac Apple Silicon (`…-macOS-AppleSilicon.pkg`), Mac Intel com macOS 10.13 ou mais recente (`…-macOS-Intel-macOS10.13.pkg`), Windows (`…-Windows-Setup.exe`) e AAX para Pro Tools (`…-AAX-*.zip`, ver LEIA-ME-AAX.txt).
+> * **Criador e desenvolvedor:** Ricardo Amorim / Juninho Piradex.
+
+Versão **1.0.1**. Formatos: **VST3**, **AU** e **AAX** para macOS **10.13 ou superior**, binário universal (**Intel** e **Apple Silicon**) — testado para correr em Macs de 2013 com Catalina; e **VST3 + AAX para Windows 10/11 (64 bits)**, com instalador. Interface em **Português e Inglês**. Código JUCE 8, C++17.
 
 ## Acesso por senha
 Ao abrir o plugin aparece o ecrã de login. Há dois tipos de senha:
@@ -18,27 +24,27 @@ python3 tools/nova_senha_beta.py 2027-03-31
 Cola a linha impressa em `kKeys` (`Source/License.cpp`) e faz push — o GitHub compila. Nunca escrevas as senhas em ficheiros do repositório.
 
 ## Instalação no Windows
-O GitHub Actions gera `ANALYSER-by-Piradex-2.1.0-Windows-Setup.exe` (instala o VST3 em `C:\Program Files\Common Files\VST3`) e um `.zip` para instalação manual. Não precisa do *Visual C++ Redistributable*. Como o instalador não tem assinatura digital, o Windows pode mostrar "O Windows protegeu o seu PC": **Mais informações → Executar mesmo assim**.
+O GitHub Actions gera `ANALYSER-by-Piradex-1.0.1-Windows-Setup.exe` (instala o VST3 em `C:\Program Files\Common Files\VST3`) e um `.zip` para instalação manual. Não precisa do *Visual C++ Redistributable*. Como o instalador não tem assinatura digital, o Windows pode mostrar "O Windows protegeu o seu PC": **Mais informações → Executar mesmo assim**.
 
 ## Instalação no Mac
-O GitHub Actions gera `ANALYSER-by-Piradex-2.1.0-macOS.dmg` com o instalador `.pkg` (VST3 + AU) e um `LEIA-ME.txt`. Como o instalador não está assinado com um certificado da Apple, na primeira vez: **botão direito no .pkg → Abrir → Abrir**.
+O GitHub Actions gera `ANALYSER-by-Piradex-1.0.1-macOS-AppleSilicon.pkg` / `…-macOS-Intel-macOS10.13.pkg` com o instalador `.pkg` (VST3 + AU) e um `LEIA-ME.txt`. Como o instalador não está assinado com um certificado da Apple, na primeira vez: **botão direito no .pkg → Abrir → Abrir**.
 
 ## AAX (Pro Tools)
 O AAX é compilado no GitHub Actions para macOS (Universal 2) e Windows x64. O Pro Tools normal só carrega plugins AAX **assinados pela PACE** (`wraptool`, conta PACE/iLok). Sem essas credenciais, sai `...-AAX-nao-assinado.zip`, que só abre no *Pro Tools Developer*. Para assinar automaticamente, adiciona nos *Secrets* do repositório: `PACE_ACCOUNT`, `PACE_PASSWORD`, `PACE_WCGUID`, `PACE_EDEN_URL` e, para Windows, `PACE_EDEN_WIN_URL`, `PACE_KEYFILE_B64`, `PACE_KEYPASSWORD`.
 
 ---
 
-## Novidades na 2.1.0
+## Histórico — 2.1.0 (numeração antiga)
 - **Chaves de licença online (PCC):** no ecrã de senha também se pode escrever uma chave `ANL-XXXX-XXXX-XXXX`, validada no PCC (Plugin Control Central). A chave fica presa ao primeiro computador, funciona 14 dias sem internet e é revalidada 1x por dia; uma chave desativada no PCC deixa de abrir o plugin. A senha master e as senhas beta continuam a funcionar sem internet.
 - O login já não congela a interface: a verificação corre em segundo plano.
 - Nova senha master (a anterior foi retirada do repositório).
 
-## Novidades na 2.0.0
+## Histórico — 2.0.0 (numeração antiga)
 
 - **Português e Inglês:** seletor **PT | EN** no rodapé e no ecrã de senha; a interface muda logo, sem reabrir. Na primeira abertura segue o idioma do sistema. A escolha é comum a todos os plugins Piradex. Os nomes de automação no DAW não mudam. Em inglês, o CSV exportado usa vírgula como separador e ponto decimal.
 - **AAX** (Pro Tools) para macOS e Windows.
 
-## Novidades na 1.1.1
+## Histórico — 1.1.1 (numeração antiga)
 
 - **Já não desenha curvas falsas com música.** O Analisador verifica se o que entra é mesmo o sinal de teste (o sinal do Gerador repete-se exatamente a cada período; a música não). Se for música, mostra *"Isto é música, não o sinal de teste"* com dois atalhos: **MODO HOST** e **MÚSICA COM SIDECHAIN**.
 - **Reconhece o Gerador sozinho**, mesmo sem ligação por Grupo (grupo diferente, DAW que isola plugins em processos separados, ou Sinal/FFT diferentes no Analisador): descobre o tipo de sinal (impulso, sweep, ruído rosa ou seno + frequência) e o tamanho da FFT a partir do áudio. Só o **Nível** tem de ser igual ao do Gerador.
