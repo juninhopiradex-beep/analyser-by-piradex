@@ -65,7 +65,8 @@ target_sources(EQMotion PRIVATE
     Source/License.cpp
     Source/ui/EQGraph.cpp
     Source/ui/BandPanel.cpp
-    Source/i18n/PiradexLanguage.cpp)
+    Source/i18n/PiradexLanguage.cpp
+    Source/i18n/ZhTable.cpp)
 
 target_include_directories(EQMotion PRIVATE Source)
 

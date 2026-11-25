@@ -167,6 +167,7 @@ EQMotionProcessor::EQMotionProcessor()
                         .withInput ("Sidechain", juce::AudioChannelSet::stereo(), false)),
       apvts (*this, nullptr, "EQMOTION", params::createLayout())
 {
+    piradex::i18n::registerPluginTable();
     for (int i = 0; i < kMaxBands; ++i)
         for (int b = 0; b < (int) ids::B::Count; ++b)
             bandPtrs[(size_t) i].p[(size_t) b] = apvts.getRawParameterValue (ids::band (i, (ids::B) b));

@@ -232,7 +232,8 @@ public:
         lookAtt = std::make_unique<juce::SliderParameterAttachment> (*proc.apvts.getParameter (ids::lookahead), look, nullptr);
         logout.onClick = [this] { lic::License::get().lock(); if (onLogout) onLogout(); };
         logout.setEnabled (lic::License::get().isUnlocked());
-        for (auto* c : std::initializer_list<juce::Component*> { &precision, &speed, &slope, &dbRange, &size, &lpQ, &look, &logout }) addAndMakeVisible (c);
+        tutorial.onClick = [this] { if (onTutorial) onTutorial(); };
+        for (auto* c : std::initializer_list<juce::Component*> { &precision, &speed, &slope, &dbRange, &size, &lpQ, &look, &logout, &tutorial }) addAndMakeVisible (c);
 
         language.accent = pal::accent;
         language.background = pal::bg0;
@@ -257,11 +258,12 @@ public:
             relabel (lpQ, { tr ("Baixa", "Low"), tr ("Média", "Medium"), tr ("Alta", "High") });
             look.setLabel (tr ("só Natural", "Natural only"));
             logout.setButtonText (tr ("Terminar sessão", "Sign out"));
+            tutorial.setButtonText (tr ("Tutorial e novidades", "Tutorial and what's new"));
             repaint();
         };
-        setSize (380, 444);
+        setSize (380, 480);
     }
-    std::function<void()> onLogout;
+    std::function<void()> onLogout, onTutorial;
 
     void resized() override
     {
@@ -276,11 +278,13 @@ public:
         row (lpQ); row (look);
         r.removeFromTop (16);
         langArea = r.removeFromTop (28);
-        language.setBounds (langArea.withTrimmedLeft (langArea.getWidth() - 104).reduced (0, 2));
+        language.setBounds (langArea.withTrimmedLeft (langArea.getWidth() - 136).reduced (0, 2));
         r.removeFromTop (12);
         auto lr = r.removeFromTop (28);
         logout.setBounds (lr.removeFromRight (150));
         licArea = lr;
+        r.removeFromTop (8);
+        tutorial.setBounds (r.removeFromTop (26).removeFromRight (180));
         aboutArea = r;
     }
     void paint (juce::Graphics& g) override
@@ -310,7 +314,7 @@ public:
         g.drawText (tr ("Idioma", "Language"), langArea.withWidth (90), juce::Justification::centredLeft);
         g.setColour (pal::textFaint);
         g.setFont (fonts::ui (11.0f));
-        g.drawText (tr ("Language · todos os plugins Piradex", "Idioma · all Piradex plugins"), langArea.withTrimmedLeft (70).withTrimmedRight (110), juce::Justification::centredLeft);
+        g.drawText (tr ("Language · todos os plugins Piradex", "Idioma · all Piradex plugins"), langArea.withTrimmedLeft (70).withTrimmedRight (142), juce::Justification::centredLeft);
         g.setFont (fonts::ui (12.0f, 1));
         g.setColour (lic::License::get().isUnlocked() ? pal::ok : pal::textDim);
         g.drawText (lic::License::get().isUnlocked() ? lic::License::get().statusText() : tr ("Sem sessão", "Not signed in"), licArea, juce::Justification::centredLeft);
@@ -328,6 +332,7 @@ private:
     std::unique_ptr<juce::ComboBoxParameterAttachment> lpQAtt;
     std::unique_ptr<juce::SliderParameterAttachment> lookAtt;
     juce::TextButton logout { tr ("Terminar sessão", "Sign out") };
+    juce::TextButton tutorial { tr ("Tutorial e novidades", "Tutorial and what's new") };
     std::vector<juce::Rectangle<int>> labels;
     juce::Rectangle<int> licArea, aboutArea, langArea;
     piradex::i18n::LanguageSwitch language;

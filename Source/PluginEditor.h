@@ -7,6 +7,7 @@
 #include "ui/SmartOpsPanel.h"
 #include "ui/TopBar.h"
 #include "ui/LoginOverlay.h"
+#include "i18n/PiradexKitUI.h"
 
 class EQMotionEditor : public juce::AudioProcessorEditor, private juce::Timer
 {
@@ -29,6 +30,7 @@ private:
     void timerCallback() override;
     void select (int band);
     void updateLock();
+    void showWelcome();
     void setUiScale (float s);
     void showCallout (std::unique_ptr<juce::Component> c, juce::Component& anchor);
 
@@ -42,6 +44,7 @@ private:
     MasterPanel master;
     SmartOpsPanel smartPanel;
     LoginOverlay login;
+    std::unique_ptr<piradex::kit::Welcome> welcome;
     juce::TooltipWindow tooltips { this, 600 };
     bool smartOpen = false;
 

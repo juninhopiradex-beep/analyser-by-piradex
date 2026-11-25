@@ -53,6 +53,7 @@ EQMotionEditor::EQMotionEditor (EQMotionProcessor& p)
         auto s = std::make_unique<SettingsPanel> (proc, [this] (float sc) { setUiScale (sc); }, [this] (float r) { if (r <= 0) graph.setAutoScale (true); else graph.setDbRange (r); },
                                                      graph.isAutoScale() ? 0.0f : graph.dbRangeTarget());
         s->onLogout = [this] { updateLock(); };
+        s->onTutorial = [this] { juce::MessageManager::callAsync ([safe = juce::Component::SafePointer<EQMotionEditor> (this)] { if (safe != nullptr) safe->showWelcome(); }); };
         showCallout (std::move (s), anchor);
     };
     proc.onSmartChanged = [safe = juce::Component::SafePointer<EQMotionEditor> (this)]
@@ -77,6 +78,7 @@ EQMotionEditor::EQMotionEditor (EQMotionProcessor& p)
     setSize ((int) ui.getProperty ("w", juce::roundToInt (kBaseW * sc)), (int) ui.getProperty ("h", juce::roundToInt (kBaseH * sc)));
     if ((bool) ui.getProperty ("smartOpen", false)) openSmartOps (true);
     updateLock();
+    if (piradex::kit::Welcome::shouldShow ("eqmotion", JucePlugin_VersionString)) showWelcome();   // 1.0.2: 3 primeiras aberturas de cada versao
     startTimerHz (15);
 }
 
@@ -104,6 +106,7 @@ void EQMotionEditor::resized()
     if (smartOpen) smartPanel.setBounds (r.removeFromLeft (304));
     graph.setBounds (r);
     login.setBounds (getLocalBounds());
+    if (welcome != nullptr) welcome->setBounds (getLocalBounds());
     proc.uiState.setProperty ("w", getWidth(), nullptr);
     proc.uiState.setProperty ("h", getHeight(), nullptr);
 }
@@ -157,4 +160,29 @@ void EQMotionEditor::mouseDown (const juce::MouseEvent&) { proc.state.markUiTouc
 bool EQMotionEditor::keyPressed (const juce::KeyPress& k)
 {
     return graph.keyPressed (k);
+}
+
+void EQMotionEditor::showWelcome()
+{
+    using W = piradex::kit::WelcomeItem;
+    welcome = std::make_unique<piradex::kit::Welcome> ("EQMotion", pal::accent, JucePlugin_VersionString, std::vector<W> {
+        W { "Criar e moldar bandas", "Create and shape bands",
+            "Duplo clique no gr\xc3\xa1" "fico cria uma banda; arraste para mover, roda do rato para o Q, duplo clique no n\xc3\xb3 para apagar.",
+            "Double-click the graph to create a band; drag to move, mouse wheel for Q, double-click a node to delete it." },
+        W { "Bandas din\xc3\xa2micas", "Dynamic bands",
+            "Qualquer sino, shelf ou tilt pode ser din\xc3\xa2mico: limiar, range, ratio e detetor da pista ou do sidechain.",
+            "Any bell, shelf or tilt can be dynamic: threshold, range, ratio and a track or sidechain detector." },
+        W { "Smart Ops e Igualar refer\xc3\xaancia", "Smart Ops and Match reference",
+            "Abra Smart Ops, escolha a opera\xc3\xa7\xc3\xa3o (ex.: Igualar refer\xc3\xaancia com o sidechain ou outra inst\xc3\xa2ncia), Aprender, Rever e Aplicar.",
+            "Open Smart Ops, pick an operation (e.g. Match reference via sidechain or another instance), Learn, Review and Apply." },
+        W { "Painel de inst\xc3\xa2ncias", "Instances panel",
+            "Veja todas as inst\xc3\xa2ncias do EQMotion do projeto num s\xc3\xb3 painel, com curvas e espetros sobrepostos.",
+            "See every EQMotion instance in the project in one panel, with overlaid curves and spectra." },
+        W { "Novo na 1.0.2", "New in 1.0.2",
+            "Idioma PT / EN / ZH nas Defini\xc3\xa7\xc3\xb5" "es, ecr\xc3\xa3 de login Piradex unificado e este tutorial nas 3 primeiras aberturas de cada vers\xc3\xa3o.",
+            "PT / EN / ZH language in Settings, the unified Piradex login screen and this tutorial on the first 3 opens of each version." } });
+    welcome->onClose = [safe = juce::Component::SafePointer<EQMotionEditor> (this)] { if (safe != nullptr) juce::MessageManager::callAsync ([safe] { if (safe != nullptr) safe->welcome.reset(); }); };
+    addAndMakeVisible (*welcome);
+    welcome->setBounds (getLocalBounds());
+    welcome->toFront (true);
 }
